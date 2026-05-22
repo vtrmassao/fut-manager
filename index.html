@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Fut Manager">
+<meta name="theme-color" content="#0a0a0f">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>⚽ Fut Manager</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body { background: #0a0a0f; color: #f0f0f0; font-family: 'Bebas Neue','Arial Black',sans-serif; min-height: 100vh; overscroll-behavior: none; }
+
+  .header-stripe { background: linear-gradient(135deg,#00c853 0%,#00897b 50%,#1565c0 100%); height: 4px; }
+  .header { background: #111118; padding: env(safe-area-inset-top, 18px) 18px 0; padding-top: max(env(safe-area-inset-top), 18px); }
+  .header-top { display:flex; justify-content:space-between; align-items:flex-start; }
+  .header-title { font-size:2rem; letter-spacing:3px; background:linear-gradient(90deg,#00e676,#00bcd4); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+  .save-badge { font-family:'DM Sans',sans-serif; font-size:0.65rem; letter-spacing:1px; padding:3px 8px; border-radius:10px; margin-top:6px; }
+  .save-saved { color:#00e676; background:#003d1a; }
+  .header-sub { font-family:'DM Sans',sans-serif; font-size:0.72rem; color:#555; letter-spacing:2px; text-transform:uppercase; margin-top:2px; margin-bottom:14px; }
+
+  .tabs { display:flex; gap:2px; border-top:1px solid #1a1a28; }
+  .tab-btn { flex:1; font-family:'Bebas Neue',sans-serif; font-size:0.85rem; letter-spacing:1px; padding:12px 6px; background:transparent; border:none; border-bottom:3px solid transparent; color:#444; cursor:pointer; transition:all 0.2s; }
+  .tab-btn.active { color:#00e676; border-bottom:3px solid #00e676; }
+
+  .content { padding:16px; padding-bottom: max(env(safe-area-inset-bottom), 20px); }
+
+  .card { background:#16161f; border:1px solid #222230; border-radius:12px; padding:16px; margin-bottom:12px; }
+  .lucro-card { background:linear-gradient(135deg,#003d1a,#00291a); border:1px solid #00e67622; border-radius:12px; padding:20px; margin-bottom:12px; position:relative; overflow:hidden; }
+  .lucro-card::after { content:'⚽'; position:absolute; right:16px; bottom:8px; font-size:3rem; opacity:0.1; }
+
+  .card-label { font-family:'DM Sans',sans-serif; font-size:0.68rem; text-transform:uppercase; letter-spacing:2px; color:#555; margin-bottom:5px; }
+  .card-value { font-size:1.9rem; letter-spacing:2px; }
+  .card-detail { font-family:'DM Sans',sans-serif; font-size:0.73rem; color:#666; margin-top:4px; }
+  .green { color:#00e676; } .red { color:#ff5252; } .yellow { color:#ffd740; } .blue { color:#40c4ff; }
+
+  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px; }
+  .grid2 .card { margin-bottom:0; }
+
+  .row-item { display:flex; align-items:center; justify-content:space-between; padding:11px 0; border-bottom:1px solid #1a1a28; font-family:'DM Sans',sans-serif; font-size:0.88rem; }
+  .row-item:last-child { border-bottom:none; }
+  .player-num { font-family:'Bebas Neue',sans-serif; font-size:1.1rem; color:#333; width:26px; flex-shrink:0; }
+
+  .badge { font-family:'Bebas Neue',sans-serif; font-size:0.72rem; letter-spacing:1px; padding:5px 12px; border-radius:20px; cursor:pointer; border:none; white-space:nowrap; }
+  .badge-green { background:#003d1a; color:#00e676; }
+  .badge-red { background:#3d0000; color:#ff5252; }
+  .badge-yellow { background:#3d2e00; color:#ffd740; }
+
+  .btn-remove { background:none; border:none; color:#2a2a3a; cursor:pointer; font-size:1.1rem; padding:4px 10px; }
+
+  .input-row { display:flex; gap:8px; margin-bottom:14px; }
+  .fut-input { flex:1; background:#0e0e18; border:1px solid #2a2a40; border-radius:8px; padding:12px 14px; color:#f0f0f0; font-family:'DM Sans',sans-serif; font-size:1rem; outline:none; -webkit-appearance:none; appearance:none; }
+  .fut-input:focus { border-color:#00e676; }
+
+  .btn-add { background:#00e676; color:#000; border:none; border-radius:8px; padding:12px 16px; font-family:'Bebas Neue',sans-serif; font-size:1rem; letter-spacing:1px; cursor:pointer; white-space:nowrap; }
+
+  .section-title { font-size:1rem; letter-spacing:2px; color:#666; margin-bottom:10px; }
+  .pendentes-bar { background:#1a1a28; border-radius:6px; height:6px; margin-top:8px; overflow:hidden; }
+  .pendentes-fill { height:100%; background:linear-gradient(90deg,#00e676,#00bcd4); border-radius:6px; transition:width 0.4s; }
+
+  .clickable { cursor:pointer; }
+  .edit-hint { font-size:0.75rem; color:#333; }
+  .custo-edit { display:flex; align-items:center; gap:8px; }
+
+  .tab-content { display:none; }
+  .tab-content.active { display:block; }
+
+  .empty-state { text-align:center; padding:32px; }
+  .empty-state .icon { font-size:2.5rem; }
+  .empty-state p { font-family:'DM Sans',sans-serif; color:#444; margin-top:8px; }
+</style>
+</head>
+<body>
+
+<div class="header-stripe"></div>
+<div class="header">
+  <div class="header-top">
+    <div class="header-title">⚽ FUT MANAGER</div>
+    <span class="save-badge save-saved" id="save-badge" style="display:none">✓ SALVO</span>
+  </div>
+  <div class="header-sub">Futsal Quarta — Junho 2025</div>
+  <div class="tabs">
+    <button class="tab-btn active" onclick="setTab('resumo')">📊 Resumo</button>
+    <button class="tab-btn" onclick="setTab('mensalistas')">👥 Mensalistas</button>
+    <button class="tab-btn" onclick="setTab('avulsos')">⚡ Avulsos</button>
+  </div>
+</div>
+
+<div class="content">
+  <div id="tab-resumo" class="tab-content active">
+    <div class="lucro-card">
+      <div class="card-label">Lucro no caixa</div>
+      <div class="card-value" id="lucro-valor">R$ 0,00</div>
+      <div class="card-detail" id="lucro-detalhe"></div>
+    </div>
+    <div class="grid2">
+      <div class="card clickable" onclick="editSaldo()">
+        <div class="card-label">💰 Saldo anterior</div>
+        <div class="card-value green" id="saldo-val">R$ 0,00</div>
+        <div class="card-detail">Toque para editar</div>
+      </div>
+      <div class="card clickable" onclick="editAvulsosAnt()">
+        <div class="card-label">⏳ Avulsos mês ant.</div>
+        <div class="card-value yellow" id="avant-val">R$ 0,00</div>
+        <div class="card-detail" id="avant-detalhe"></div>
+      </div>
+    </div>
+    <div class="grid2">
+      <div class="card">
+        <div class="card-label">Mensalistas pagos</div>
+        <div class="card-value green" id="mens-val">R$ 0,00</div>
+        <div class="card-detail" id="mens-detalhe"></div>
+      </div>
+      <div class="card">
+        <div class="card-label">Avulsos pagos</div>
+        <div class="card-value blue" id="avpagos-val">R$ 0,00</div>
+        <div class="card-detail" id="avpagos-detalhe"></div>
+      </div>
+    </div>
+    <div class="grid2">
+      <div class="card">
+        <div class="card-label">A receber ainda</div>
+        <div class="card-value yellow" id="areceber-val">R$ 0,00</div>
+        <div class="card-detail" id="areceber-detalhe"></div>
+      </div>
+      <div class="card clickable" onclick="editCusto()">
+        <div class="card-label">Custo da quadra</div>
+        <div class="card-value" id="custo-val">R$ 0,00</div>
+        <div class="card-detail">Toque para editar</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-label">Progresso mensalistas</div>
+      <div id="progresso-txt" style="font-family:'DM Sans',sans-serif;font-size:0.85rem;color:#888;margin-top:4px"></div>
+      <div class="pendentes-bar"><div class="pendentes-fill" id="progresso-fill" style="width:0%"></div></div>
+    </div>
+    <div class="card" id="pendentes-card" style="display:none">
+      <div class="card-label" style="color:#ff5252">⏳ Pendentes</div>
+      <div id="pendentes-lista"></div>
+    </div>
+  </div>
+
+  <div id="tab-mensalistas" class="tab-content">
+    <div class="input-row">
+      <input class="fut-input" id="inp-mens" placeholder="Nome do jogador..." onkeydown="if(event.key==='Enter')addMensalista()">
+      <button class="btn-add" onclick="addMensalista()">+ ADD</button>
+    </div>
+    <div class="card">
+      <div class="section-title">MENSALISTAS JUNHO — R$ 35</div>
+      <div id="mens-lista"></div>
+    </div>
+  </div>
+
+  <div id="tab-avulsos" class="tab-content">
+    <div class="input-row">
+      <input class="fut-input" id="inp-av" placeholder="Nome do avulso..." onkeydown="if(event.key==='Enter')addAvulso()">
+      <select class="fut-input" id="sel-av" style="flex:0 0 100px">
+        <option value="pago">Pago</option>
+        <option value="pendente">Pendente</option>
+      </select>
+      <button class="btn-add" onclick="addAvulso()">+ ADD</button>
+    </div>
+    <div id="avulsos-wrap"></div>
+    <div class="grid2" style="margin-top:12px">
+      <div class="card">
+        <div class="card-label">Pagos</div>
+        <div class="card-value green" id="avtotal-pagos">R$ 0,00</div>
+        <div class="card-detail" id="avtotal-pagos-d"></div>
+      </div>
+      <div class="card">
+        <div class="card-label">Pendentes</div>
+        <div class="card-value yellow" id="avtotal-pend">R$ 0,00</div>
+        <div class="card-detail" id="avtotal-pend-d"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const MENSALIDADE = 35, AVULSO_VALOR = 20;
+const DEFAULT = {
+  mensalistas: ["Matias","Jorge","Vini","Saulo","Otavio","Serjo","Marco","Jeba","Eduardo","Gui Paternezi","Soh","Will","Djalma","Hulk","Trind","Petter"]
+    .map((nome,i) => ({id:i, nome, pago:["Serjo","Trind"].includes(nome)})),
+  avulsos: [], custoQuadra: 600, saldoAnterior: 180, avulsosPendentesAnt: 2
+};
+
+function load() {
+  try { const s = localStorage.getItem('futmgr'); return s ? JSON.parse(s) : JSON.parse(JSON.stringify(DEFAULT)); }
+  catch(e) { return JSON.parse(JSON.stringify(DEFAULT)); }
+}
+function save() {
+  localStorage.setItem('futmgr', JSON.stringify(state));
+  const b = document.getElementById('save-badge');
+  b.style.display = '';
+  clearTimeout(save._t);
+  save._t = setTimeout(() => b.style.display='none', 2000);
+}
+
+let state = load();
+const brl = v => 'R$ ' + v.toFixed(2).replace('.',',');
+
+function setTab(t) {
+  document.querySelectorAll('.tab-btn').forEach((b,i) => b.classList.toggle('active', ['resumo','mensalistas','avulsos'][i]===t));
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+  document.getElementById('tab-'+t).classList.add('active');
+  render();
+}
+
+function render() {
+  const {mensalistas,avulsos,custoQuadra,saldoAnterior,avulsosPendentesAnt} = state;
+  const pagos = mensalistas.filter(m=>m.pago), pend = mensalistas.filter(m=>!m.pago);
+  const avP = avulsos.filter(a=>a.status==='pago'), avPend = avulsos.filter(a=>a.status==='pendente');
+  const totalMens = pagos.length*MENSALIDADE, totalAvP = avP.length*AVULSO_VALOR, totalAvPend = avPend.length*AVULSO_VALOR;
+  const totalRec = saldoAnterior + avulsosPendentesAnt*AVULSO_VALOR + totalMens + totalAvP;
+  const lucro = totalRec - custoQuadra, aRec = pend.length*MENSALIDADE + totalAvPend;
+
+  const lv = document.getElementById('lucro-valor');
+  lv.textContent = brl(lucro); lv.className = 'card-value '+(lucro>=0?'green':'red');
+  document.getElementById('lucro-detalhe').textContent = `Total ${brl(totalRec)} — Custo ${brl(custoQuadra)}`;
+  document.getElementById('saldo-val').textContent = brl(saldoAnterior);
+  document.getElementById('avant-val').textContent = brl(avulsosPendentesAnt*AVULSO_VALOR);
+  document.getElementById('avant-detalhe').textContent = `${avulsosPendentesAnt} × R$ ${AVULSO_VALOR} recebidos`;
+  document.getElementById('mens-val').textContent = brl(totalMens);
+  document.getElementById('mens-detalhe').textContent = `${pagos.length} × R$ ${MENSALIDADE}`;
+  document.getElementById('avpagos-val').textContent = brl(totalAvP);
+  document.getElementById('avpagos-detalhe').textContent = `${avP.length} × R$ ${AVULSO_VALOR}`;
+  document.getElementById('areceber-val').textContent = brl(aRec);
+  document.getElementById('areceber-detalhe').textContent = `${pend.length} mensalistas + ${avPend.length} avulsos`;
+  document.getElementById('custo-val').textContent = brl(custoQuadra);
+  const pct = mensalistas.length ? pagos.length/mensalistas.length*100 : 0;
+  document.getElementById('progresso-txt').textContent = `${pagos.length} de ${mensalistas.length} pagaram`;
+  document.getElementById('progresso-fill').style.width = pct+'%';
+  const pc = document.getElementById('pendentes-card');
+  pc.style.display = pend.length ? '' : 'none';
+  document.getElementById('pendentes-lista').innerHTML = pend.map(m =>
+    `<div class="row-item"><span>${m.nome}</span><span class="yellow">R$ ${MENSALIDADE},00</span></div>`).join('');
+
+  document.getElementById('mens-lista').innerHTML = mensalistas.map((m,i) =>
+    `<div class="row-item">
+      <div style="display:flex;align-items:center;gap:10px">
+        <span class="player-num">${i+1}</span>
+        <span style="font-family:'DM Sans',sans-serif">${m.nome}</span>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="badge ${m.pago?'badge-green':'badge-red'}" onclick="toggleMens(${m.id})">${m.pago?'PAGO ✓':'PENDENTE'}</button>
+        <button class="btn-remove" onclick="removeMens(${m.id})">✕</button>
+      </div>
+    </div>`).join('');
+
+  document.getElementById('avulsos-wrap').innerHTML = avulsos.length === 0
+    ? `<div class="card empty-state"><div class="icon">⚡</div><p>Nenhum avulso ainda</p></div>`
+    : `<div class="card"><div class="section-title">AVULSOS — R$ ${AVULSO_VALOR} cada</div>${avulsos.map(a =>
+        `<div class="row-item">
+          <span style="font-family:'DM Sans',sans-serif">${a.nome}</span>
+          <div style="display:flex;gap:8px;align-items:center">
+            <button class="badge ${a.status==='pago'?'badge-green':'badge-yellow'}" onclick="toggleAv(${a.id})">${a.status==='pago'?'PAGO ✓':'PENDENTE'}</button>
+            <button class="btn-remove" onclick="removeAv(${a.id})">✕</button>
+          </div>
+        </div>`).join('')}</div>`;
+
+  document.getElementById('avtotal-pagos').textContent = brl(totalAvP);
+  document.getElementById('avtotal-pagos-d').textContent = `${avP.length} jogadores`;
+  document.getElementById('avtotal-pend').textContent = brl(totalAvPend);
+  document.getElementById('avtotal-pend-d').textContent = `${avPend.length} jogadores`;
+}
+
+function toggleMens(id) { state.mensalistas = state.mensalistas.map(m => m.id===id?{...m,pago:!m.pago}:m); save(); render(); }
+function removeMens(id) { if(!confirm('Remover?')) return; state.mensalistas = state.mensalistas.filter(m=>m.id!==id); save(); render(); }
+function addMensalista() {
+  const i = document.getElementById('inp-mens'), n = i.value.trim(); if(!n) return;
+  state.mensalistas.push({id:Date.now(),nome:n,pago:false}); i.value=''; save(); render();
+}
+function addAvulso() {
+  const i = document.getElementById('inp-av'), n = i.value.trim(); if(!n) return;
+  const s = document.getElementById('sel-av').value;
+  state.avulsos.push({id:Date.now(),nome:n,status:s}); i.value=''; save(); render();
+}
+function toggleAv(id) { state.avulsos = state.avulsos.map(a => a.id===id?{...a,status:a.status==='pago'?'pendente':'pago'}:a); save(); render(); }
+function removeAv(id) { if(!confirm('Remover?')) return; state.avulsos = state.avulsos.filter(a=>a.id!==id); save(); render(); }
+function editCusto() { const v=prompt('Custo da quadra (R$):',state.custoQuadra); if(v!==null&&!isNaN(+v)&&+v>=0){state.custoQuadra=+v;save();render();} }
+function editSaldo() { const v=prompt('Saldo do mês anterior (R$):',state.saldoAnterior); if(v!==null&&!isNaN(+v)){state.saldoAnterior=+v;save();render();} }
+function editAvulsosAnt() { const v=prompt('Qtd avulsos pendentes mês anterior:',state.avulsosPendentesAnt); if(v!==null&&!isNaN(+v)){state.avulsosPendentesAnt=+v;save();render();} }
+
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/fut-manager/sw.js');
+}
+
+render();
+</script>
+</body>
+</html>
