@@ -501,6 +501,14 @@
             Backup</button>
         </div>
       </div>
+
+      <div class="card" style="border: 1px solid #ff525244;">
+        <div class="section-title" style="color:#ff5252;">📅 Fechamento Mensal</div>
+        <p style="font-family:'DM Sans',sans-serif; font-size:0.8rem; color:#888; margin-bottom:12px; line-height:1.4;">
+          Ao iniciar um novo mês: os pagamentos dos mensalistas serão zerados, a lista de avulsos será limpa e o caixa atual vira o saldo inicial do próximo mês.
+        </p>
+        <button class="btn-add" style="background:#ff5252; color:#fff;" onclick="iniciarNovoMes()">🆕 Iniciar Novo Mês</button>
+      </div>
     </div>
   </div>
 
@@ -773,6 +781,37 @@
         }
         document.body.removeChild(textarea);
       });
+    }
+
+    function iniciarNovoMes() {
+      const { mensalistas, avulsos, custoQuadra, saldoAnterior, avulsosPendentesAnt, valorMensalidade, valorAvulso } = state;
+      const pagos = mensalistas.filter(m => m.pago);
+      const avP = avulsos.filter(a => a.status === 'pago');
+      const avPend = avulsos.filter(a => a.status === 'pendente');
+      const totalMens = pagos.length * valorMensalidade;
+      const totalAvP = avP.length * valorAvulso;
+      const totalRecebidoMes = avulsosPendentesAnt * valorAvulso + totalMens + totalAvP;
+      const totalRec = saldoAnterior + totalRecebidoMes;
+      const lucro = totalRec - custoQuadra;
+
+      const msg = `Você está iniciando um novo mês.\n\n` +
+                  `Resumo atual:\n` +
+                  `- Caixa atual: ${brl(lucro)}\n` +
+                  `- Mensalistas pendentes: ${mensalistas.length - pagos.length}\n` +
+                  `- Avulsos pendentes que vão para o próximo mês: ${avPend.length}\n\n` +
+                  `Deseja prosseguir? Isso limpará a lista de avulsos e resetará os pagamentos dos mensalistas.`;
+
+      if (!confirm(msg)) return;
+
+      // Executa o fechamento
+      state.saldoAnterior = lucro;
+      state.avulsosPendentesAnt = avPend.length;
+      state.avulsos = [];
+      state.mensalistas = state.mensalistas.map(m => ({ ...m, pago: false }));
+      
+      save();
+      render();
+      alert(`Novo mês iniciado com sucesso! Saldo anterior definido para ${brl(lucro)}`);
     }
 
     if ('serviceWorker' in navigator) {
