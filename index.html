@@ -348,7 +348,8 @@
       <div class="header-title">⚽ FUT MANAGER</div>
       <span class="save-badge save-saved" id="save-badge" style="display:none">✓ SALVO</span>
     </div>
-    <div class="header-sub">Futsal Quarta — Junho 2025</div>
+    <div class="header-sub clickable" id="header-mes-ano" onclick="editMesAno()" style="cursor: pointer;">Futsal Quarta
+      — Junho 2025</div>
     <div class="tabs">
       <button class="tab-btn active" onclick="setTab('resumo')">📊 Resumo</button>
       <button class="tab-btn" onclick="setTab('mensalistas')">👥 Mensalistas</button>
@@ -489,6 +490,17 @@
       </div>
 
       <div class="card">
+        <div class="section-title">Chave Pix</div>
+        <div style="display:flex; flex-direction:column; gap:8px; font-family:'DM Sans',sans-serif; font-size:0.9rem;">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span style="color:#aaa;">Chave Pix:</span>
+            <input type="text" class="fut-input" id="cfg-pix"
+              style="max-width:200px; padding:8px 10px; margin:0;" placeholder="Sua chave Pix..." onchange="updatePix()">
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
         <div class="section-title">📦 Backup dos Dados</div>
         <p style="font-family:'DM Sans',sans-serif; font-size:0.8rem; color:#888; margin-bottom:12px; line-height:1.4;">
           Como os dados são salvos localmente no seu celular, exporte um backup de vez em quando para não perder seu
@@ -505,23 +517,32 @@
       <div class="card" style="border: 1px solid #ff525244;">
         <div class="section-title" style="color:#ff5252;">📅 Fechamento Mensal</div>
         <p style="font-family:'DM Sans',sans-serif; font-size:0.8rem; color:#888; margin-bottom:12px; line-height:1.4;">
-          Ao iniciar um novo mês: os pagamentos dos mensalistas serão zerados, a lista de avulsos será limpa e o caixa atual vira o saldo inicial do próximo mês.
+          Ao iniciar um novo mês: os pagamentos dos mensalistas serão zerados, a lista de avulsos será limpa e o caixa
+          atual vira o saldo inicial do próximo mês.
         </p>
-        <button class="btn-add" style="background:#ff5252; color:#fff;" onclick="iniciarNovoMes()">🆕 Iniciar Novo Mês</button>
+        <button class="btn-add" style="background:#ff5252; color:#fff;" onclick="iniciarNovoMes()">🆕 Iniciar Novo
+          Mês</button>
       </div>
     </div>
   </div>
 
   <script>
+    const obterMesAnoAtual = () => {
+      const meses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+      const d = new Date();
+      return `${meses[d.getMonth()]} ${d.getFullYear()}`;
+    };
+
     const DEFAULT = {
-      mensalistas: ["Matias", "Jorge", "Vini", "Saulo", "Otavio", "Serjo", "Marco", "Jeba", "Eduardo", "Gui Paternezi", "Soh", "Will", "Djalma", "Hulk", "Trind", "Petter"]
-        .map((nome, i) => ({ id: i, nome, pago: ["Serjo", "Trind"].includes(nome) })),
+      mensalistas: [],
       avulsos: [],
-      custoQuadra: 600,
-      saldoAnterior: 180,
-      avulsosPendentesAnt: 2,
-      valorMensalidade: 35,
-      valorAvulso: 20
+      custoQuadra: 0,
+      saldoAnterior: 0,
+      avulsosPendentesAnt: 0,
+      valorMensalidade: 0,
+      valorAvulso: 0,
+      mesAno: obterMesAnoAtual(),
+      chavePix: ''
     };
 
     function load() {
@@ -529,8 +550,10 @@
         const s = localStorage.getItem('futmgr');
         if (!s) return JSON.parse(JSON.stringify(DEFAULT));
         const parsed = JSON.parse(s);
-        if (parsed.valorMensalidade === undefined) parsed.valorMensalidade = 35;
-        if (parsed.valorAvulso === undefined) parsed.valorAvulso = 20;
+        if (parsed.valorMensalidade === undefined) parsed.valorMensalidade = 0;
+        if (parsed.valorAvulso === undefined) parsed.valorAvulso = 0;
+        if (parsed.mesAno === undefined) parsed.mesAno = obterMesAnoAtual();
+        if (parsed.chavePix === undefined) parsed.chavePix = '';
         return parsed;
       }
       catch (e) { return JSON.parse(JSON.stringify(DEFAULT)); }
@@ -555,12 +578,14 @@
     }
 
     function render() {
-      const { mensalistas, avulsos, custoQuadra, saldoAnterior, avulsosPendentesAnt, valorMensalidade, valorAvulso } = state;
+      const { mensalistas, avulsos, custoQuadra, saldoAnterior, avulsosPendentesAnt, valorMensalidade, valorAvulso, mesAno, chavePix } = state;
       const pagos = mensalistas.filter(m => m.pago), pend = mensalistas.filter(m => !m.pago);
       const avP = avulsos.filter(a => a.status === 'pago'), avPend = avulsos.filter(a => a.status === 'pendente');
       const totalMens = pagos.length * valorMensalidade, totalAvP = avP.length * valorAvulso, totalAvPend = avPend.length * valorAvulso;
       const totalRec = saldoAnterior + avulsosPendentesAnt * valorAvulso + totalMens + totalAvP;
       const lucro = totalRec - custoQuadra, aRec = pend.length * valorMensalidade + totalAvPend;
+
+      document.getElementById('header-mes-ano').textContent = `Futsal Quarta — ${mesAno || obterMesAnoAtual()} ✏️`;
 
       const lv = document.getElementById('lucro-valor');
       lv.textContent = brl(lucro); lv.className = 'card-value ' + (lucro >= 0 ? 'green' : 'red');
@@ -616,8 +641,10 @@
       // Atualiza os inputs na aba Ajustes se eles existirem
       const cfgM = document.getElementById('cfg-mensalidade');
       const cfgA = document.getElementById('cfg-avulso');
+      const cfgP = document.getElementById('cfg-pix');
       if (cfgM) cfgM.value = valorMensalidade;
       if (cfgA) cfgA.value = valorAvulso;
+      if (cfgP) cfgP.value = chavePix || '';
     }
 
     function toggleMens(id) { state.mensalistas = state.mensalistas.map(m => m.id === id ? { ...m, pago: !m.pago } : m); save(); render(); }
@@ -636,6 +663,14 @@
     function editCusto() { const v = prompt('Custo da quadra (R$):', state.custoQuadra); if (v !== null && !isNaN(+v) && +v >= 0) { state.custoQuadra = +v; save(); render(); } }
     function editSaldo() { const v = prompt('Saldo do mês anterior (R$):', state.saldoAnterior); if (v !== null && !isNaN(+v)) { state.saldoAnterior = +v; save(); render(); } }
     function editAvulsosAnt() { const v = prompt('Qtd avulsos pendentes mês anterior:', state.avulsosPendentesAnt); if (v !== null && !isNaN(+v)) { state.avulsosPendentesAnt = +v; save(); render(); } }
+    function editMesAno() { const v = prompt('Nome do mês / Período (ex: Junho 2025):', state.mesAno || obterMesAnoAtual()); if (v !== null && v.trim() !== '') { state.mesAno = v.trim(); save(); render(); } }
+
+    function updatePix() {
+      const val = document.getElementById('cfg-pix').value.trim();
+      state.chavePix = val;
+      save();
+      render();
+    }
 
     function updateTaxas() {
       const valMensalidade = parseFloat(document.getElementById('cfg-mensalidade').value);
@@ -663,8 +698,10 @@
         if (parsed && typeof parsed === 'object') {
           if (Array.isArray(parsed.mensalistas)) {
             state = parsed;
-            if (state.valorMensalidade === undefined) state.valorMensalidade = 35;
-            if (state.valorAvulso === undefined) state.valorAvulso = 20;
+            if (state.valorMensalidade === undefined) state.valorMensalidade = 0;
+            if (state.valorAvulso === undefined) state.valorAvulso = 0;
+            if (state.mesAno === undefined) state.mesAno = obterMesAnoAtual();
+            if (state.chavePix === undefined) state.chavePix = '';
             save();
             render();
             alert('Backup importado com sucesso!');
@@ -680,7 +717,7 @@
     }
 
     function copiarResumoWhats() {
-      const { mensalistas, avulsos, custoQuadra, saldoAnterior, avulsosPendentesAnt, valorMensalidade, valorAvulso } = state;
+      const { mensalistas, avulsos, custoQuadra, saldoAnterior, avulsosPendentesAnt, valorMensalidade, valorAvulso, mesAno } = state;
       const pagos = mensalistas.filter(m => m.pago), pend = mensalistas.filter(m => !m.pago);
       const avP = avulsos.filter(a => a.status === 'pago'), avPend = avulsos.filter(a => a.status === 'pendente');
       const totalMens = pagos.length * valorMensalidade;
@@ -693,7 +730,7 @@
       const pct = mensalistas.length ? Math.round((pagos.length / mensalistas.length) * 100) : 0;
 
       let txt = `⚽ *FUT MANAGER - RESUMO FINANCEIRO* ⚽\n`;
-      txt += `📅 *Futsal Quarta*\n\n`;
+      txt += `📅 *Futsal Quarta — ${mesAno || obterMesAnoAtual()}*\n\n`;
       txt += `💵 *Valor em Caixa:* ${brl(lucro)}\n`;
       txt += `💰 *Saldo Anterior:* ${brl(saldoAnterior)}\n`;
       txt += `💰 *Total Recebido no Mês:* ${brl(totalRecebidoMes)}\n`;
@@ -737,11 +774,12 @@
     }
 
     function copiarMensalistasWhats() {
-      const { mensalistas, valorMensalidade } = state;
+      const { mensalistas, valorMensalidade, mesAno } = state;
       const pagos = mensalistas.filter(m => m.pago);
       const pend = mensalistas.filter(m => !m.pago);
 
       let txt = `👥 *MENSALISTAS - STATUS DE PAGAMENTO* ⚽\n`;
+      txt += `📅 *Período:* ${mesAno || obterMesAnoAtual()}\n`;
       txt += `💵 *Mensalidade:* ${brl(valorMensalidade)}\n\n`;
 
       txt += `✅ *PAGOS (${pagos.length}):*\n`;
@@ -764,6 +802,9 @@
 
       const pct = mensalistas.length ? Math.round((pagos.length / mensalistas.length) * 100) : 0;
       txt += `\n📊 *Progresso:* ${pagos.length} de ${mensalistas.length} pagos (${pct}%)`;
+      if (state.chavePix) {
+        txt += `\n💵 *Pix:* ${state.chavePix}`;
+      }
 
       navigator.clipboard.writeText(txt).then(() => {
         alert('Lista de mensalistas copiada! Só colar no WhatsApp. 😉');
@@ -794,12 +835,13 @@
       const totalRec = saldoAnterior + totalRecebidoMes;
       const lucro = totalRec - custoQuadra;
 
-      const msg = `Você está iniciando um novo mês.\n\n` +
-                  `Resumo atual:\n` +
-                  `- Caixa atual: ${brl(lucro)}\n` +
-                  `- Mensalistas pendentes: ${mensalistas.length - pagos.length}\n` +
-                  `- Avulsos pendentes que vão para o próximo mês: ${avPend.length}\n\n` +
-                  `Deseja prosseguir? Isso limpará a lista de avulsos e resetará os pagamentos dos mensalistas.`;
+      const novoMesAno = obterMesAnoAtual();
+      const msg = `Você está iniciando um novo mês (${novoMesAno}).\n\n` +
+        `Resumo atual:\n` +
+        `- Caixa atual: ${brl(lucro)}\n` +
+        `- Mensalistas pendentes: ${mensalistas.length - pagos.length}\n` +
+        `- Avulsos pendentes que vão para o próximo mês: ${avPend.length}\n\n` +
+        `Deseja prosseguir? Isso limpará a lista de avulsos, resetará os pagamentos dos mensalistas e definirá o período como "${novoMesAno}".`;
 
       if (!confirm(msg)) return;
 
@@ -808,10 +850,11 @@
       state.avulsosPendentesAnt = avPend.length;
       state.avulsos = [];
       state.mensalistas = state.mensalistas.map(m => ({ ...m, pago: false }));
-      
+      state.mesAno = novoMesAno;
+
       save();
       render();
-      alert(`Novo mês iniciado com sucesso! Saldo anterior definido para ${brl(lucro)}`);
+      alert(`Novo mês iniciado com sucesso! Saldo anterior definido para ${brl(lucro)} e período atualizado para ${novoMesAno}.`);
     }
 
     if ('serviceWorker' in navigator) {
