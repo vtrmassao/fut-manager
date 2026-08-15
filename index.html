@@ -21,11 +21,18 @@
       -webkit-tap-highlight-color: transparent;
     }
 
+    html {
+      max-width: 100%;
+      overflow-x: hidden;
+    }
+
     body {
       background: #0a0a0f;
       color: #f0f0f0;
       font-family: 'Bebas Neue', 'Arial Black', sans-serif;
       min-height: 100vh;
+      max-width: 100%;
+      overflow-x: hidden;
       overscroll-behavior: none;
     }
 
@@ -115,6 +122,9 @@
     .content {
       padding: 16px;
       padding-bottom: max(env(safe-area-inset-bottom), 20px);
+      max-width: 100%;
+      overflow-x: clip;
+      min-width: 0;
     }
 
     .card {
@@ -196,16 +206,46 @@
 
     .row-item {
       display: flex;
-      align-items: center;
+      align-items: flex-start;
       justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 8px;
       padding: 11px 0;
       border-bottom: 1px solid #1a1a28;
       font-family: 'DM Sans', sans-serif;
       font-size: 0.88rem;
+      min-width: 0;
+      max-width: 100%;
     }
 
     .row-item:last-child {
       border-bottom: none;
+    }
+
+    .row-item-main {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+      flex: 1 1 120px;
+    }
+
+    .row-item-main .player-nome {
+      font-family: 'DM Sans', sans-serif;
+      min-width: 0;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }
+
+    .row-item-actions {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      flex: 1 1 auto;
+      max-width: 100%;
+      min-width: 0;
     }
 
     .player-num {
@@ -220,11 +260,12 @@
       font-family: 'Bebas Neue', sans-serif;
       font-size: 0.72rem;
       letter-spacing: 1px;
-      padding: 5px 12px;
+      padding: 5px 10px;
       border-radius: 20px;
       cursor: pointer;
       border: none;
       white-space: nowrap;
+      flex-shrink: 0;
     }
 
     .badge-green {
@@ -302,16 +343,23 @@
       cursor: pointer;
       font-size: 1.1rem;
       padding: 4px 10px;
+      flex-shrink: 0;
     }
 
     .input-row {
       display: flex;
+      flex-wrap: wrap;
       gap: 8px;
       margin-bottom: 14px;
+      min-width: 0;
+      max-width: 100%;
+      align-items: stretch;
     }
 
     .fut-input {
-      flex: 1;
+      flex: 1 1 140px;
+      min-width: 0;
+      max-width: 100%;
       background: #0e0e18;
       border: 1px solid #2a2a40;
       border-radius: 8px;
@@ -328,6 +376,12 @@
       border-color: #00e676;
     }
 
+    .fut-input--valor {
+      flex: 0 1 90px;
+      min-width: 72px;
+      max-width: 110px;
+    }
+
     .btn-add {
       background: #00e676;
       color: #000;
@@ -339,6 +393,7 @@
       letter-spacing: 1px;
       cursor: pointer;
       white-space: nowrap;
+      flex: 0 0 auto;
     }
 
     .section-title {
@@ -436,6 +491,8 @@
       flex-wrap: nowrap;
       margin-top: 8px;
       width: 100%;
+      min-width: 0;
+      max-width: 100%;
     }
 
     .stat-group {
@@ -443,8 +500,9 @@
       flex-direction: column;
       align-items: center;
       gap: 4px;
-      flex: 1;
-      padding: 4px 10px;
+      flex: 1 1 0;
+      min-width: 0;
+      padding: 4px 4px;
       border-right: 1px solid #2a2a40;
     }
 
@@ -498,6 +556,7 @@
 
     .stats-pair-row {
       display: flex;
+      flex-direction: column;
       flex-wrap: nowrap;
       gap: 10px;
       align-items: stretch;
@@ -505,42 +564,17 @@
       max-width: 100%;
       min-width: 0;
       box-sizing: border-box;
-      overflow-x: auto;
-      overflow-y: hidden;
-      -webkit-overflow-scrolling: touch;
-      overscroll-behavior-x: contain;
-      padding-bottom: 10px;
-      margin-bottom: 2px;
-      scrollbar-gutter: stable;
-      scrollbar-width: auto;
-      scrollbar-color: #00e676 #2a2a40;
     }
 
     .stats-pair-row--duo {
-      overflow-x: scroll;
-    }
-
-    .stats-pair-row::-webkit-scrollbar {
-      height: 8px;
-      display: block;
-    }
-
-    .stats-pair-row::-webkit-scrollbar-track {
-      background: #2a2a40;
-      border-radius: 4px;
-    }
-
-    .stats-pair-row::-webkit-scrollbar-thumb {
-      background: #00e676;
-      border-radius: 4px;
-      min-width: 40px;
+      flex-direction: column;
     }
 
     .stats-pair-row--duo .team-panel {
-      flex: 0 0 auto;
-      width: max(260px, calc((100% - 10px) / 2));
-      min-width: 260px;
-      max-width: none;
+      flex: 1 1 auto;
+      width: 100%;
+      min-width: 0;
+      max-width: 100%;
       box-sizing: border-box;
     }
 
@@ -548,7 +582,19 @@
       flex: 1 1 auto;
       width: 100%;
       min-width: 0;
-      max-width: none;
+      max-width: 100%;
+    }
+
+    @media (min-width: 700px) {
+      .stats-pair-row--duo {
+        flex-direction: row;
+        align-items: stretch;
+      }
+
+      .stats-pair-row--duo .team-panel {
+        flex: 1 1 0;
+        width: auto;
+      }
     }
 
     .team-panel {
@@ -557,6 +603,9 @@
       padding: 10px 8px;
       background: #111118;
       min-height: 80px;
+      min-width: 0;
+      max-width: 100%;
+      overflow: hidden;
       transition: border-color 0.15s, background 0.15s;
     }
 
@@ -762,9 +811,17 @@
 
     .teams-wrap {
       display: grid;
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: 1fr;
       gap: 8px;
       margin-bottom: 8px;
+      min-width: 0;
+      max-width: 100%;
+    }
+
+    @media (min-width: 700px) {
+      .teams-wrap {
+        grid-template-columns: 1fr 1fr;
+      }
     }
 
     .filter-row {
@@ -1195,10 +1252,10 @@
           <p style="font-size:0.8rem; color:#888; line-height:1.4; margin:0;">
             Quem organiza o grupo: joga, não paga mensalidade e aparece nas partidas.
           </p>
-          <div style="display:flex; justify-content:space-between; align-items:center;">
-            <span style="color:#aaa;">Nome:</span>
+          <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; min-width:0;">
+            <span style="color:#aaa; flex-shrink:0;">Nome:</span>
             <input type="text" class="fut-input" id="cfg-admin-nome"
-              style="max-width:200px; padding:8px 10px; margin:0;" placeholder="Ex.: João" onchange="updateAdminNome()">
+              style="max-width:200px; flex:1; min-width:0; padding:8px 10px; margin:0;" placeholder="Ex.: João" onchange="updateAdminNome()">
           </div>
         </div>
       </div>
@@ -1226,10 +1283,10 @@
       <div class="card">
         <div class="section-title">Chave Pix</div>
         <div style="display:flex; flex-direction:column; gap:8px; font-family:'DM Sans',sans-serif; font-size:0.9rem;">
-          <div style="display:flex; justify-content:space-between; align-items:center;">
-            <span style="color:#aaa;">Chave Pix:</span>
+          <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; min-width:0;">
+            <span style="color:#aaa; flex-shrink:0;">Chave Pix:</span>
             <input type="text" class="fut-input" id="cfg-pix"
-              style="max-width:200px; padding:8px 10px; margin:0;" placeholder="Sua chave Pix..." onchange="updatePix()">
+              style="max-width:200px; flex:1; min-width:0; padding:8px 10px; margin:0;" placeholder="Sua chave Pix..." onchange="updatePix()">
           </div>
         </div>
       </div>
@@ -1245,8 +1302,8 @@
         <div class="input-row" style="margin-bottom:10px">
           <input class="fut-input" id="inp-debito-desc" placeholder="Descrição (ex.: bola)"
             onkeydown="if(event.key==='Enter')addDebito()">
-          <input type="number" class="fut-input" id="inp-debito-valor" placeholder="R$" min="0" step="0.01"
-            style="flex:0 0 90px" onkeydown="if(event.key==='Enter')addDebito()">
+          <input type="number" class="fut-input fut-input--valor" id="inp-debito-valor" placeholder="R$" min="0" step="0.01"
+            onkeydown="if(event.key==='Enter')addDebito()">
           <button class="btn-add" onclick="addDebito()">+ ADD</button>
         </div>
         <div id="debitos-lista"></div>
@@ -2432,12 +2489,12 @@
 
       const adminPerfil = getAdminPerfil();
       const adminRow = `<div class="row-item">
-      <div style="display:flex;align-items:center;gap:10px">
+      <div class="row-item-main">
         <span class="player-num">★</span>
-        <span style="font-family:'DM Sans',sans-serif">${adminNomeLabel()}${golTag(adminPerfil.goleiro)}</span>
-        <span style="font-family:'DM Sans',sans-serif;font-size:0.65rem;color:#00bcd4">admin</span>
+        <span class="player-nome">${adminNomeLabel()}${golTag(adminPerfil.goleiro)}</span>
+        <span style="font-family:'DM Sans',sans-serif;font-size:0.65rem;color:#00bcd4;flex-shrink:0">admin</span>
       </div>
-      <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:flex-end">
+      <div class="row-item-actions">
         <button class="badge badge-nivel" onclick="cycleNivelAdmin()" title="${tituloNivelBadge(adminPerfil.nivel)}">Nv ${formatNivel(adminPerfil.nivel)}</button>
         ${badgeAvHtml(ADMIN.id, adminPerfil.nivelAvaliacao)}
         <button class="badge ${adminPerfil.goleiro ? 'badge-gol' : 'badge-linha'}" onclick="toggleGoleiroAdmin()">${adminPerfil.goleiro ? 'GOL' : 'LINHA'}</button>
@@ -2446,11 +2503,11 @@
 
       document.getElementById('mens-lista').innerHTML = adminRow + mensalistas.map((m, i) =>
         `<div class="row-item">
-      <div style="display:flex;align-items:center;gap:10px">
+      <div class="row-item-main">
         <span class="player-num">${i + 1}</span>
-        <span style="font-family:'DM Sans',sans-serif">${m.nome}${golTag(m.goleiro)}</span>
+        <span class="player-nome">${m.nome}${golTag(m.goleiro)}</span>
       </div>
-      <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:flex-end">
+      <div class="row-item-actions">
         <button class="badge badge-nivel" onclick="cycleNivelMens(${m.id})" title="${tituloNivelBadge(m.nivel)}">Nv ${formatNivel(m.nivel)}</button>
         ${badgeAvHtml(m.id, m.nivelAvaliacao)}
         <button class="badge ${m.goleiro ? 'badge-gol' : 'badge-linha'}" onclick="toggleGoleiroMens(${m.id})">${m.goleiro ? 'GOL' : 'LINHA'}</button>
@@ -2463,10 +2520,10 @@
         ? `<div class="card empty-state"><div class="icon">⚡</div><p>Nenhum avulso ainda</p></div>`
         : `<div class="card"><div class="section-title">AVULSOS — R$ ${valorAvulso} cada</div>${avulsos.map(a =>
           `<div class="row-item">
-          <div style="display:flex;align-items:center;gap:8px">
-            <span style="font-family:'DM Sans',sans-serif">${a.nome}${golTag(a.goleiro)}</span>
+          <div class="row-item-main">
+            <span class="player-nome">${a.nome}${golTag(a.goleiro)}</span>
           </div>
-          <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:flex-end">
+          <div class="row-item-actions">
             <button class="badge badge-nivel" onclick="cycleNivelAv(${a.id})" title="${tituloNivelBadge(a.nivel)}">Nv ${formatNivel(a.nivel)}</button>
             ${badgeAvHtml(a.id, a.nivelAvaliacao)}
             <button class="badge ${a.goleiro ? 'badge-gol' : 'badge-linha'}" onclick="toggleGoleiroAv(${a.id})">${a.goleiro ? 'GOL' : 'LINHA'}</button>
