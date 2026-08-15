@@ -1,0 +1,21 @@
+---
+description: Contexto e convenções do Fut Manager (PWA futsal)
+alwaysApply: true
+---
+
+# Fut Manager — regras do agente
+
+Antes de mudar código, leia [`CONTEXTO.md`](CONTEXTO.md).
+
+## Resumo rápido
+
+- App PWA monolítico: só `index.html` + `sw.js` + `manifest.json` (sem framework/backend).
+- Persistência: `localStorage` chave `futmgr`.
+- Domínios: **caixa** (mensalistas/avulsos) + **partidas/stats/ranking/times** + **avaliações** (`#a=` + Discord webhook).
+- Pelada: quartas, **21:00–23:00** (24h). Datas na UI: **dd/mm/aaaa**.
+- **Admin** = `ADMIN` id `900001`, nome em `adminPerfil.nome` (Ajustes; sem default), joga sem pagar mensalidade.
+- Dois níveis: **Nv** manual (sorteio) e **Av** das avaliações (só leitura).
+- `iniciarNovoMes()` **não** apaga `partidas` nem `avaliacoes`.
+- Webhook Discord só em `localStorage` (Ajustes) — nunca hardcodar no repo.
+- Ao alterar UI/JS do app: bump da versão de cache em `sw.js`.
+- Responder em português. Não commitar sem pedido explícito.
