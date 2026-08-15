@@ -123,6 +123,8 @@
       border-radius: 12px;
       padding: 16px;
       margin-bottom: 12px;
+      min-width: 0;
+      max-width: 100%;
     }
 
     .lucro-card {
@@ -458,15 +460,11 @@
       text-transform: uppercase;
     }
 
-    .stats-teams-head,
-    .stats-pair-row {
+    .stats-teams-head {
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 8px;
       align-items: start;
-    }
-
-    .stats-teams-head {
       margin-bottom: 6px;
     }
 
@@ -490,9 +488,67 @@
     }
 
     .stats-teams-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      width: 100%;
+      max-width: 100%;
+      min-width: 0;
+    }
+
+    .stats-pair-row {
+      display: flex;
+      flex-wrap: nowrap;
       gap: 10px;
+      align-items: stretch;
+      width: 100%;
+      max-width: 100%;
+      min-width: 0;
+      box-sizing: border-box;
+      overflow-x: auto;
+      overflow-y: hidden;
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior-x: contain;
+      padding-bottom: 10px;
+      margin-bottom: 2px;
+      scrollbar-gutter: stable;
+      scrollbar-width: auto;
+      scrollbar-color: #00e676 #2a2a40;
+    }
+
+    .stats-pair-row--duo {
+      overflow-x: scroll;
+    }
+
+    .stats-pair-row::-webkit-scrollbar {
+      height: 8px;
+      display: block;
+    }
+
+    .stats-pair-row::-webkit-scrollbar-track {
+      background: #2a2a40;
+      border-radius: 4px;
+    }
+
+    .stats-pair-row::-webkit-scrollbar-thumb {
+      background: #00e676;
+      border-radius: 4px;
+      min-width: 40px;
+    }
+
+    .stats-pair-row--duo .team-panel {
+      flex: 0 0 auto;
+      width: max(260px, calc((100% - 10px) / 2));
+      min-width: 260px;
+      max-width: none;
+      box-sizing: border-box;
+    }
+
+    .stats-pair-row:not(.stats-pair-row--duo) .team-panel {
+      flex: 1 1 auto;
+      width: 100%;
+      min-width: 0;
+      max-width: none;
     }
 
     .team-panel {
@@ -2840,7 +2896,7 @@
       }
       const byId = id => p.participantes.find(x => x.playerId == id);
       const numTeams = timesIds.length;
-      return `<div class="stats-teams-grid">${timesIds.map((ids, ti) => {
+      const panelHtml = (ids, ti) => {
         const parts = ids.map(byId).filter(Boolean);
         const nivel = somaNivelTime(p, ids);
         return `<div class="team-panel" style="border-color:${teamColor(ti)}"
@@ -2851,7 +2907,15 @@
           <div class="team-panel-hint">Arraste para cá</div>
           ${parts.map(part => htmlStatsJogador(p, part, ti, numTeams)).join('') || '<div class="card-detail">vazio — solte um jogador</div>'}
         </div>`;
-      }).join('')}</div>
+      };
+      const chunks = [];
+      for (let i = 0; i < timesIds.length; i += 2) {
+        const pair = timesIds.slice(i, i + 2);
+        const panels = pair.map((ids, j) => panelHtml(ids, i + j)).join('');
+        const duoClass = pair.length === 2 ? ' stats-pair-row--duo' : '';
+        chunks.push(`<div class="stats-pair-row${duoClass}">${panels}</div>`);
+      }
+      return `<div class="stats-teams-grid">${chunks.join('')}</div>
       <div class="card-detail" style="margin-top:8px">Arraste o card ou use a letra (A/B/C…) para trocar de time</div>`;
     }
 
