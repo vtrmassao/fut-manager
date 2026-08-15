@@ -136,7 +136,7 @@ Ao criar/adicionar jogador, **copiar** `nivel` e `goleiro` do cadastro para o pa
 
 1. Número de times = `max(2, ceil(presentes / jogadoresPorTime))`  
    Ex.: 15→3, 20→4, 13→3 (com `jogadoresPorTime = 5`)
-2. Tamanhos quase iguais (ex. 13 → 5+4+4); todos entram (sem reserva)
+2. Prioriza completar times no tamanho ideal; sobra no último (ex. 13 → 5+5+3, não 5+4+4); todos entram (sem reserva)
 3. Goleiros primeiro (preferência 1 por time), depois de linha
 4. Cada próximo jogador vai para o time com **menor soma** do critério escolhido (`balanceamentoTimes`: **Nv** ou **Av**) que ainda tenha vaga
 5. Em modo **Av**, jogador sem `nivelAvaliacao` usa o **Nv** manual como fallback

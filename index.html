@@ -1229,7 +1229,7 @@
         <div class="section-title">Times (futsal)</div>
         <div style="display:flex; flex-direction:column; gap:8px; font-family:'DM Sans',sans-serif; font-size:0.9rem;">
           <p style="font-size:0.8rem; color:#888; line-height:1.4; margin:0;">
-            Tamanho ideal de cada time. Ex.: 15 presentes → 3 times; 20 → 4; 13 → 3 (equilibrados por nível).
+            Tamanho ideal de cada time. Ex.: 15 → 3×5; 20 → 4×5; 13 → 5+5+3 (completa o ideal antes de sobrar).
           </p>
           <div style="display:flex; justify-content:space-between; align-items:center;">
             <span style="color:#aaa;">Jogadores por time:</span>
@@ -1707,11 +1707,22 @@
       return Math.max(2, Math.ceil(n / sizePer));
     }
 
-    function calcTeamCapacities(n, numTimes) {
-      const base = Math.floor(n / numTimes);
-      const rem = n % numTimes;
-      const sizes = Array(numTimes).fill(base);
-      for (let i = 0; i < rem; i++) sizes[i]++;
+    /** Prioriza times no tamanho ideal; sobra no último (ex.: 13 / 5 → [5,5,3]). */
+    function calcTeamCapacities(n, numTimes, sizePer) {
+      const ideal = Math.max(1, sizePer || 5);
+      const sizes = Array(numTimes).fill(0);
+      let remaining = n;
+      for (let i = 0; i < numTimes; i++) {
+        const teamsLeft = numTimes - i;
+        if (teamsLeft === 1) {
+          sizes[i] = remaining;
+          break;
+        }
+        // Completa até o ideal, mas deixa ≥1 jogador para cada time restante
+        const take = Math.min(ideal, remaining - (teamsLeft - 1));
+        sizes[i] = Math.max(1, take);
+        remaining -= sizes[i];
+      }
       return sizes;
     }
 
@@ -2730,7 +2741,7 @@
       const n = p.participantes.length;
       const numTimes = calcNumTimes(n, sizePer);
       if (numTimes < 1) return;
-      const capacities = calcTeamCapacities(n, numTimes);
+      const capacities = calcTeamCapacities(n, numTimes, sizePer);
       p.participantes.forEach(part => {
         if (part.nivel === undefined) part.nivel = 3;
         if (part.goleiro === undefined) part.goleiro = false;
