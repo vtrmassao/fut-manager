@@ -11,7 +11,7 @@ Antes de mudar código, leia [`CONTEXTO.md`](CONTEXTO.md).
 
 - App PWA monolítico: só `index.html` + `sw.js` + `manifest.json` (sem framework/backend).
 - Persistência: `localStorage` chave `futmgr`.
-- Domínios: **caixa** (mensalistas/avulsos) + **partidas/stats/ranking/times** + **avaliações** (`#a=` + Discord webhook).
+- Domínios: **caixa** (mensalistas/avulsos) + **partidas/stats/ranking/times** + **avaliações** (`#a=` + Discord webhook; notas + gols/assistências).
 - Pelada: quartas, **21:00–23:00** (24h). Datas na UI: **dd/mm/aaaa**.
 - **Admin** = `ADMIN` id `900001`, nome em `adminPerfil.nome` (Ajustes; sem default), joga sem pagar mensalidade.
 - Dois níveis: **Nv** manual (sorteio) e **Av** das avaliações (só leitura).
