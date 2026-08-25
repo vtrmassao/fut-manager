@@ -94,6 +94,7 @@ O loader só injeta o script em host local; em produção o seed não carrega.
   avaliacoes: [{
     id, partidaId, data, avaliadorId,
     notas: { [avaliadoId]: 1-5 },
+    stats: { [playerId]: { gols, assistencias, defesas? } },  // autodeclaração no link #a= (só do avaliador; defesas se goleiro)
     importadoEm
   }]
 }
@@ -108,11 +109,11 @@ O loader só injeta o script em host local; em produção o seed não carrega.
 
 ## Avaliações pós-partida (nível por pares)
 
-1. Em **Ajustes**: colar URL do webhook Discord (+ Testar webhook); importar JSON(s) de avaliação
-2. Na partida: **Link de avaliação** gera `#a=<jsonB64>.<idB64>~<token>` — roster no JSON flat `{ v, p, d, j }`; webhook **fora** do JSON. O snowflake vai como `uint64` BE em base64url; o token fica em texto. Prefixo Discord fixo no código. Links legados com `w` texto dentro do JSON ainda abrem.
-3. Quem abre o link (app em URL pública): escolhe “quem sou eu”, nota 1–5 nos outros, **Enviar** → POST no Discord (fallback: copiar JSON)
-4. Admin importa o JSON do canal → dedupe `(partidaId, avaliadorId)` → atualiza só `nivelAvaliacao` (média das notas recebidas). O **Nv** manual **não** é sobrescrito.
-5. Só admin/mensalista/avulso entram na avaliação (convidados fora); snapshot da partida copia `nivel` e `nivelAvaliacao` do cadastro
+1. Em **Ajustes**: colar URL do webhook Discord (+ Testar webhook); importar JSON(s) de avaliação; **Resetar avaliações** apaga todas (Av volta a ?; G/A das partidas não mudam)
+2. Na partida: **Link de avaliação** gera `#a=<jsonB64>.<idB64>~<token>` — roster no JSON flat `{ v, p, d, j }`; webhook **fora** do JSON. O snowflake vai como `uint64` BE em base64url; o token fica em texto. Prefixo Discord fixo no código. Links legados com `w` texto dentro do JSON ainda abrem. Na partida também dá para importar/resetar só as avaliações dela.
+3. Quem abre o link (app em URL pública): escolhe “quem sou eu”, nota 1–5 nos outros, registra **só os próprios** gols/assistências (e **defesas** se for goleiro no roster), **Enviar** → POST no Discord (fallback: copiar JSON). Pacote inclui `stats: { [avaliadorId]: { gols, assistencias, defesas? } }`. O roster do link marca goleiro como `[id, nome, 1]`.
+4. Admin importa o JSON do canal → dedupe `(partidaId, avaliadorId)` → atualiza `nivelAvaliacao` (média das notas recebidas) e, se houver `stats`, gols/assistências/defesas dos participantes (cada um declara os próprios). O **Nv** manual **não** é sobrescrito.
+5. **Todos os participantes da partida** entram na avaliação (admin, mensalista, avulso e convidado). Notas só atualizam Av no cadastro de admin/mensalista/avulso; gols/assistências aplicam em qualquer participante. Digitar um nome que já existe no cadastro reusa o id/origem (não cria convidado fantasma).
 6. Badges no cadastro: **Nv** (manual, cicla) + **Av** (avaliações; `title` com média exata)
 
 ## Partidas (fluxo)

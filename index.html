@@ -972,12 +972,18 @@
 
     .avaliar-nota-row {
       display: flex;
+      flex-direction: column;
+      gap: 8px;
+      padding: 12px 0;
+      border-bottom: 1px solid #1e1e2a;
+      font-family: 'DM Sans', sans-serif;
+    }
+
+    .avaliar-nota-top {
+      display: flex;
       justify-content: space-between;
       align-items: center;
       gap: 10px;
-      padding: 10px 0;
-      border-bottom: 1px solid #1e1e2a;
-      font-family: 'DM Sans', sans-serif;
     }
 
     .avaliar-nota-btns {
@@ -1002,6 +1008,34 @@
       background: #00e676;
       border-color: #00e676;
       color: #000;
+    }
+
+    .avaliar-ga {
+      display: flex;
+      gap: 16px;
+      align-items: center;
+    }
+
+    .avaliar-ga-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.8rem;
+      color: #888;
+    }
+
+    .avaliar-ga-item .stat-btn {
+      width: 28px;
+      height: 28px;
+      font-size: 1rem;
+    }
+
+    .avaliar-ga-item .stat-val {
+      min-width: 1.2rem;
+      text-align: center;
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 1.1rem;
+      color: #e8e8e8;
     }
 
     .avaliar-actions {
@@ -1271,12 +1305,13 @@
           <button type="button" class="btn-secondary" onclick="testarDiscordWebhook()">Testar webhook</button>
           <div class="section-title" style="margin-top:8px;margin-bottom:0">Importar avaliações</div>
           <p style="font-size:0.75rem; color:#666; line-height:1.4; margin:0;">
-            Cole o JSON (ou vários) que chegou no Discord. Atualiza só o nível das avaliações (Av); o Nv manual continua o que você escolheu.
+            Cole o JSON (ou vários) que chegou no Discord. Atualiza o nível Av (média das notas) e, se vier no JSON, gols/assistências da partida (média dos relatos). O Nv manual não muda.
           </p>
           <textarea class="fut-input" id="inp-import-avaliacoes" rows="5"
             placeholder='{"v":1,"tipo":"avaliacao-partida",...}'
             style="font-family:monospace;font-size:0.75rem;resize:vertical;min-height:90px"></textarea>
           <button type="button" class="btn-add" style="background:#1565c0;color:#fff" onclick="importarAvaliacoesDaUi()">Importar JSON</button>
+          <button type="button" class="btn-add" style="background:#ff5252;color:#fff" onclick="resetarAvaliacoes()">Resetar avaliações</button>
         </div>
       </div>
 
@@ -1396,6 +1431,7 @@
       payload: null,
       avaliadorId: null,
       notas: {},
+      stats: {},
       enviando: false
     };
 
@@ -1585,12 +1621,15 @@
       parsed.partidas = parsed.partidas.map(p => ({
         ...p,
         participantes: (p.participantes || []).map(part => {
-          const perfil = perfilFromParsed(parsed, part);
+          const origem = origemEfetivaParticipante(part, parsed);
+          const partNorm = { ...part, origem };
+          const perfil = perfilFromParsed(parsed, partNorm);
           return {
             gols: 0,
             assistencias: 0,
             defesas: 0,
-            ...part,
+            ...partNorm,
+            origem,
             nivel: part.nivel !== undefined ? normalizeNivel(part.nivel) : perfil.nivel,
             nivelAvaliacao: part.nivelAvaliacao !== undefined
               ? normalizeNivel(part.nivelAvaliacao)
@@ -1654,7 +1693,32 @@
         if (id && !isNaN(id) && !isNaN(n) && id !== avaliadorId) notas[String(id)] = n;
       });
       if (!Object.keys(notas).length) return null;
-      return {
+      const stats = {};
+      const srcStats = av.stats && typeof av.stats === 'object' ? av.stats : {};
+      Object.keys(srcStats).forEach(k => {
+        const id = +k;
+        if (!id || isNaN(id)) return;
+        const s = srcStats[k];
+        let gols = 0;
+        let assistencias = 0;
+        let defesas = 0;
+        if (Array.isArray(s)) {
+          gols = Math.max(0, Math.round(+s[0] || 0));
+          assistencias = Math.max(0, Math.round(+s[1] || 0));
+          defesas = Math.max(0, Math.round(+s[2] || 0));
+        } else if (s && typeof s === 'object') {
+          gols = Math.max(0, Math.round(+s.gols || 0));
+          assistencias = Math.max(0, Math.round(+s.assistencias || 0));
+          defesas = Math.max(0, Math.round(+s.defesas || 0));
+        }
+        const entry = { gols, assistencias };
+        const temDefesas = Array.isArray(s)
+          ? s.length > 2
+          : !!(s && typeof s === 'object' && Object.prototype.hasOwnProperty.call(s, 'defesas'));
+        if (temDefesas) entry.defesas = defesas;
+        stats[String(id)] = entry;
+      });
+      const out = {
         id: av.id || Date.now() + Math.floor(Math.random() * 1000),
         partidaId,
         data: typeof av.data === 'string' ? av.data : '',
@@ -1662,6 +1726,8 @@
         notas,
         importadoEm: typeof av.importadoEm === 'string' ? av.importadoEm : ''
       };
+      if (Object.keys(stats).length) out.stats = stats;
+      return out;
     }
 
     function normalizeTimes(times) {
@@ -2070,10 +2136,53 @@
       return '20' + d.slice(0, 2) + '-' + d.slice(2, 4) + '-' + d.slice(4, 6);
     }
 
+    /** Infere origem quando falta ou está inválida (dados antigos / digitação). */
+    function origemEfetivaParticipante(part, parsed) {
+      const o = part && part.origem;
+      if (o === 'admin' || o === 'mensalista' || o === 'avulso' || o === 'convidado') return o;
+      const pid = part && part.playerId;
+      if (pid == ADMIN.id) return 'admin';
+      const src = parsed || state;
+      if ((src.mensalistas || []).some(m => m.id == pid)) return 'mensalista';
+      if ((src.avulsos || []).some(a => a.id == pid)) return 'avulso';
+      return 'convidado';
+    }
+
+    /**
+     * Todos que jogaram entram na avaliação (inclui convidados/avulsos).
+     * Antes só admin/mensalista/avulso — quem ia como "convidado" (nome digitado) sumia da lista.
+     */
+    /** Roster do link: [id, nome] ou [id, nome, 1] se goleiro. */
     function jogadoresAvaliaveisDaPartida(partida) {
       return (partida.participantes || [])
-        .filter(p => p.origem === 'admin' || p.origem === 'mensalista' || p.origem === 'avulso')
-        .map(p => [p.playerId, p.nome]);
+        .map(p => {
+          const id = +p.playerId;
+          const nome = String(p.nome || '').trim();
+          if (!id || isNaN(id) || !nome) return null;
+          return p.goleiro ? [id, nome, 1] : [id, nome];
+        })
+        .filter(Boolean);
+    }
+
+    function isGoleiroNoPayloadAvaliar(playerId) {
+      const row = (avaliarUi.payload && avaliarUi.payload.j || []).find(([id]) => +id === +playerId);
+      return !!(row && row[2]);
+    }
+
+    /** Se o nome digitado bate com cadastro, reusa id/origem (evita mensalista “sumir” da avaliação). */
+    function resolverJogadorPorNome(nomeRaw) {
+      const nome = String(nomeRaw || '').trim();
+      if (!nome) return null;
+      const key = nome.toLowerCase();
+      const adminNome = adminNomeLabel().trim();
+      if (adminNome && adminNome.toLowerCase() === key) {
+        return { playerId: ADMIN.id, nome: adminNome, origem: 'admin' };
+      }
+      const m = state.mensalistas.find(x => String(x.nome || '').trim().toLowerCase() === key);
+      if (m) return { playerId: m.id, nome: m.nome, origem: 'mensalista' };
+      const a = state.avulsos.find(x => String(x.nome || '').trim().toLowerCase() === key);
+      if (a) return { playerId: a.id, nome: a.nome, origem: 'avulso' };
+      return { playerId: Date.now(), nome, origem: 'convidado' };
     }
 
     function montarPayloadLinkAvaliacao(partida) {
@@ -2168,6 +2277,45 @@
         .filter(Boolean);
     }
 
+    function aplicarStatsAvaliacoesNasPartidas(partidaIds) {
+      const filtro = partidaIds && partidaIds.length
+        ? new Set(partidaIds.map(Number))
+        : null;
+      const byPartida = {};
+      (state.avaliacoes || []).forEach(av => {
+        if (filtro && !filtro.has(+av.partidaId)) return;
+        if (!av.stats || typeof av.stats !== 'object') return;
+        const pid = +av.partidaId;
+        if (!byPartida[pid]) byPartida[pid] = {};
+        Object.keys(av.stats).forEach(playerKey => {
+          const s = av.stats[playerKey];
+          if (!s) return;
+          const g = Math.max(0, Math.round(+s.gols || 0));
+          const a = Math.max(0, Math.round(+s.assistencias || 0));
+          const d = Math.max(0, Math.round(+s.defesas || 0));
+          if (!byPartida[pid][playerKey]) byPartida[pid][playerKey] = { gols: [], assistencias: [], defesas: [] };
+          byPartida[pid][playerKey].gols.push(g);
+          byPartida[pid][playerKey].assistencias.push(a);
+          if (Object.prototype.hasOwnProperty.call(s, 'defesas')) {
+            byPartida[pid][playerKey].defesas.push(d);
+          }
+        });
+      });
+      Object.keys(byPartida).forEach(partidaId => {
+        const partida = findPartida(+partidaId);
+        if (!partida) return;
+        Object.keys(byPartida[partidaId]).forEach(playerKey => {
+          const part = (partida.participantes || []).find(p => String(p.playerId) === String(playerKey));
+          if (!part) return;
+          const bucket = byPartida[partidaId][playerKey];
+          const avg = arr => Math.round(arr.reduce((sum, x) => sum + x, 0) / arr.length);
+          part.gols = avg(bucket.gols);
+          part.assistencias = avg(bucket.assistencias);
+          if (bucket.defesas.length) part.defesas = avg(bucket.defesas);
+        });
+      });
+    }
+
     function aplicarPacotesAvaliacao(pacotes) {
       if (!Array.isArray(state.avaliacoes)) state.avaliacoes = [];
       let novos = 0;
@@ -2185,9 +2333,45 @@
         }
       });
       recalcularNiveis();
+      const partidaIds = [...new Set(pacotes.map(p => p.partidaId))];
+      aplicarStatsAvaliacoesNasPartidas(partidaIds);
       save();
       render();
       return { novos, substituidos };
+    }
+
+    function resetarAvaliacoes() {
+      const n = (state.avaliacoes || []).length;
+      if (!n) {
+        alert('Não há avaliações para resetar.');
+        return;
+      }
+      if (!confirm(
+        `Apagar todas as ${n} avaliação(ões) importadas?\n\n` +
+        'O nível Av dos jogadores volta para ?. Gols e assistências das partidas não são alterados.'
+      )) return;
+      state.avaliacoes = [];
+      recalcularNiveis();
+      save();
+      render();
+      alert('Avaliações resetadas.');
+    }
+
+    function resetarAvaliacoesPartida(partidaId) {
+      const daPartida = (state.avaliacoes || []).filter(a => a.partidaId == partidaId);
+      if (!daPartida.length) {
+        alert('Nenhuma avaliação importada para esta partida.');
+        return;
+      }
+      if (!confirm(
+        `Apagar ${daPartida.length} avaliação(ões) desta partida?\n\n` +
+        'O nível Av é recalculado com o que sobrar. Gols/assistências da partida não são alterados.'
+      )) return;
+      state.avaliacoes = (state.avaliacoes || []).filter(a => a.partidaId != partidaId);
+      recalcularNiveis();
+      save();
+      render();
+      alert('Avaliações desta partida removidas.');
     }
 
     function importarAvaliacoesDaUi() {
@@ -2200,7 +2384,7 @@
       }
       const r = aplicarPacotesAvaliacao(pacotes);
       if (el) el.value = '';
-      alert(`Importado: ${r.novos} novo(s), ${r.substituidos} substituído(s). Nível das avaliações (Av) atualizado; o Nv manual não muda.`);
+      alert(`Importado: ${r.novos} novo(s), ${r.substituidos} substituído(s). Nível Av atualizado; gols/assistências da partida atualizados se vieram no JSON. O Nv manual não muda.`);
     }
 
     function importarAvaliacoesPartida(partidaId) {
@@ -2249,7 +2433,7 @@
       if (!p) return;
       const jogadores = jogadoresAvaliaveisDaPartida(p);
       if (!jogadores.length) {
-        alert('Nenhum jogador cadastrado (admin/mensalista/avulso) nesta partida para avaliar.');
+        alert('Nenhum jogador nesta partida para avaliar.');
         return;
       }
       if (!parseWebhookToken(state.discordWebhookUrl || '')) {
@@ -2277,7 +2461,7 @@
           const id = +row[0];
           const nome = String(row[1] || '').trim();
           if (!id || isNaN(id) || !nome) return null;
-          return [id, nome];
+          return row[2] ? [id, nome, 1] : [id, nome];
         })
         .filter(Boolean);
       if (!payload.j.length) throw new Error('sem jogadores');
@@ -2294,6 +2478,7 @@
         avaliarUi.payload = payload;
         avaliarUi.avaliadorId = null;
         avaliarUi.notas = {};
+        avaliarUi.stats = {};
         avaliarUi.enviando = false;
         document.body.classList.add('modo-avaliar');
         renderAvaliar();
@@ -2305,6 +2490,16 @@
       }
     }
 
+    function ensureStatsAvaliar(playerId) {
+      const key = String(playerId);
+      if (!avaliarUi.stats[key]) {
+        avaliarUi.stats[key] = { gols: 0, assistencias: 0, defesas: 0 };
+      } else if (avaliarUi.stats[key].defesas === undefined) {
+        avaliarUi.stats[key].defesas = 0;
+      }
+      return avaliarUi.stats[key];
+    }
+
     function setAvaliadorAvaliar(id) {
       if (!id) {
         avaliarUi.avaliadorId = null;
@@ -2314,6 +2509,7 @@
       avaliarUi.avaliadorId = +id;
       delete avaliarUi.notas[String(id)];
       delete avaliarUi.notas[id];
+      ensureStatsAvaliar(avaliarUi.avaliadorId);
       renderAvaliar();
     }
 
@@ -2321,6 +2517,20 @@
       if (!avaliarUi.avaliadorId) return;
       if (+avaliadoId === +avaliarUi.avaliadorId) return;
       avaliarUi.notas[String(avaliadoId)] = Math.min(5, Math.max(1, Math.round(+nota)));
+      renderAvaliar();
+    }
+
+    function adjStatAvaliar(playerId, campo, delta) {
+      if (!avaliarUi.avaliadorId) return;
+      // Só os próprios números
+      if (+playerId !== +avaliarUi.avaliadorId) return;
+      if (campo === 'defesas') {
+        if (!isGoleiroNoPayloadAvaliar(playerId)) return;
+      } else if (campo !== 'gols' && campo !== 'assistencias') {
+        return;
+      }
+      const st = ensureStatsAvaliar(playerId);
+      st[campo] = Math.max(0, (st[campo] || 0) + delta);
       renderAvaliar();
     }
 
@@ -2335,13 +2545,22 @@
       });
       const esperados = p.j.filter(([id]) => +id !== +avaliarUi.avaliadorId).length;
       if (Object.keys(notas).length < esperados) return null;
+      const st = ensureStatsAvaliar(avaliarUi.avaliadorId);
+      const selfStats = {
+        gols: Math.max(0, Math.round(+st.gols || 0)),
+        assistencias: Math.max(0, Math.round(+st.assistencias || 0))
+      };
+      if (isGoleiroNoPayloadAvaliar(avaliarUi.avaliadorId)) {
+        selfStats.defesas = Math.max(0, Math.round(+st.defesas || 0));
+      }
       return {
         v: 1,
         tipo: 'avaliacao-partida',
         partidaId: +p.p,
         data: yymmddToIso(p.d) || '',
         avaliadorId: +avaliarUi.avaliadorId,
-        notas
+        notas,
+        stats: { [String(avaliarUi.avaliadorId)]: selfStats }
       };
     }
 
@@ -2355,7 +2574,7 @@
     async function enviarAvaliacaoDiscord() {
       const pacote = montarPacoteDoFormAvaliar();
       if (!pacote) {
-        alert('Escolha quem é você e dê nota (1–5) a todos os outros.');
+        alert('Escolha quem é você e dê nota (1–5) a todos os outros. Seus gols/assistências (e defesas, se goleiro) são opcionais.');
         return;
       }
       const json = JSON.stringify(pacote);
@@ -2391,10 +2610,39 @@
     function copiarJsonAvaliacaoFallback() {
       const pacote = montarPacoteDoFormAvaliar();
       if (!pacote) {
-        alert('Escolha quem é você e dê nota (1–5) a todos os outros.');
+        alert('Escolha quem é você e dê nota (1–5) a todos os outros. Seus gols/assistências (e defesas, se goleiro) são opcionais.');
         return;
       }
       copyText(JSON.stringify(pacote, null, 2), 'JSON copiado!');
+    }
+
+    function htmlStatsPropriosAvaliar(playerId) {
+      const st = ensureStatsAvaliar(playerId);
+      const goleiro = isGoleiroNoPayloadAvaliar(playerId);
+      let html = `<div class="avaliar-ga">
+        <div class="avaliar-ga-item">
+          <span>G</span>
+          <button type="button" class="stat-btn" onclick="adjStatAvaliar(${playerId},'gols',-1)">−</button>
+          <span class="stat-val">${st.gols || 0}</span>
+          <button type="button" class="stat-btn" onclick="adjStatAvaliar(${playerId},'gols',1)">+</button>
+        </div>
+        <div class="avaliar-ga-item">
+          <span>A</span>
+          <button type="button" class="stat-btn" onclick="adjStatAvaliar(${playerId},'assistencias',-1)">−</button>
+          <span class="stat-val">${st.assistencias || 0}</span>
+          <button type="button" class="stat-btn" onclick="adjStatAvaliar(${playerId},'assistencias',1)">+</button>
+        </div>`;
+      if (goleiro) {
+        html += `
+        <div class="avaliar-ga-item">
+          <span>D</span>
+          <button type="button" class="stat-btn" onclick="adjStatAvaliar(${playerId},'defesas',-1)">−</button>
+          <span class="stat-val">${st.defesas || 0}</span>
+          <button type="button" class="stat-btn" onclick="adjStatAvaliar(${playerId},'defesas',1)">+</button>
+        </div>`;
+      }
+      html += `</div>`;
+      return html;
     }
 
     function renderAvaliar() {
@@ -2404,24 +2652,35 @@
       const dataIso = yymmddToIso(p.d);
       const dataLabel = dataIso ? formatDataBRLong(dataIso) : ('Partida #' + p.p);
       const temWh = !!unpackWebhookBinary(p.w || '');
+      const souGoleiro = avaliarUi.avaliadorId && isGoleiroNoPayloadAvaliar(avaliarUi.avaliadorId);
 
-      const opcoes = p.j.map(([id, nome]) =>
-        `<option value="${id}" ${+avaliarUi.avaliadorId === +id ? 'selected' : ''}>${nome}</option>`
+      const opcoes = p.j.map(([id, nome, gFlag]) =>
+        `<option value="${id}" ${+avaliarUi.avaliadorId === +id ? 'selected' : ''}>${nome}${gFlag ? ' (GOL)' : ''}</option>`
       ).join('');
 
       let listaHtml = '';
       if (avaliarUi.avaliadorId) {
-        listaHtml = p.j
-          .filter(([id]) => +id !== +avaliarUi.avaliadorId)
-          .map(([id, nome]) => {
+        const selfRow = p.j.find(([id]) => +id === +avaliarUi.avaliadorId);
+        const selfNome = selfRow ? selfRow[1] : 'Você';
+        const outros = p.j.filter(([id]) => +id !== +avaliarUi.avaliadorId);
+        const statsLabel = souGoleiro ? 'Seus gols, assistências e defesas' : 'Seus gols e assistências';
+        listaHtml =
+          `<div class="avaliar-nota-row">
+            <div class="avaliar-nota-top"><span><strong>Você</strong> · ${selfNome}${souGoleiro ? ' · GOL' : ''}</span></div>
+            <p class="avaliar-sub" style="margin:0 0 6px;font-size:0.75rem">${statsLabel}</p>
+            ${htmlStatsPropriosAvaliar(avaliarUi.avaliadorId)}
+          </div>` +
+          outros.map(([id, nome]) => {
             const atual = avaliarUi.notas[String(id)] ?? avaliarUi.notas[id];
             const btns = [1, 2, 3, 4, 5].map(n =>
               `<button type="button" class="${+atual === n ? 'sel' : ''}" onclick="setNotaAvaliar(${id},${n})">${n}</button>`
             ).join('');
-            return `<div class="avaliar-nota-row"><span>${nome}</span><div class="avaliar-nota-btns">${btns}</div></div>`;
+            return `<div class="avaliar-nota-row">
+              <div class="avaliar-nota-top"><span>${nome}</span><div class="avaliar-nota-btns">${btns}</div></div>
+            </div>`;
           }).join('');
       } else {
-        listaHtml = `<p class="avaliar-sub" style="margin:0">Selecione quem é você para liberar as notas.</p>`;
+        listaHtml = `<p class="avaliar-sub" style="margin:0">Selecione quem é você para liberar notas e seus números.</p>`;
       }
 
       root.innerHTML = `
@@ -2435,7 +2694,7 @@
           </select>
         </div>
         <div class="card">
-          <div class="section-title">NOTAS (1–5)</div>
+          <div class="section-title">NOTAS · SEUS NÚMEROS</div>
           ${listaHtml}
         </div>
         <div class="avaliar-actions">
@@ -2445,7 +2704,7 @@
           </button>
           <button type="button" class="btn-secondary" onclick="copiarJsonAvaliacaoFallback()">Copiar JSON</button>
         </div>
-        <p class="avaliar-sub" style="margin-top:12px">Não se avalia a si mesmo. Dê nota a todos os outros para enviar.</p>
+        <p class="avaliar-sub" style="margin-top:12px">Não se avalia a si mesmo. Dê nota a todos os outros. Registre só os seus gols (G) e assistências (A)${souGoleiro ? ' e defesas (D)' : ''}.</p>
       `;
     }
 
@@ -2655,7 +2914,19 @@
       if (!i) return;
       const n = i.value.trim();
       if (!n) return;
-      ui.draftConvidados.push({ id: Date.now() + Math.floor(Math.random() * 1000), nome: n });
+      const resolved = resolverJogadorPorNome(n);
+      if (!resolved) return;
+      // Se o nome já é mensalista/avulso/admin, marca na lista em vez de criar "convidado" fantasma
+      if (resolved.origem === 'admin') {
+        ui.draftSelecionados['admin:' + ADMIN.id] = true;
+      } else if (resolved.origem === 'mensalista') {
+        ui.draftSelecionados['m:' + resolved.playerId] = true;
+      } else if (resolved.origem === 'avulso') {
+        ui.draftSelecionados['a:' + resolved.playerId] = true;
+      } else {
+        const jaTem = ui.draftConvidados.some(c => c.nome.toLowerCase() === resolved.nome.toLowerCase());
+        if (!jaTem) ui.draftConvidados.push({ id: resolved.playerId, nome: resolved.nome });
+      }
       i.value = '';
       render();
     }
@@ -2690,7 +2961,10 @@
         }
       });
       ui.draftConvidados.forEach(c => {
-        participantes.push(snapshotParticipante({ playerId: c.id, nome: c.nome, origem: 'convidado' }));
+        const resolved = resolverJogadorPorNome(c.nome) || { playerId: c.id, nome: c.nome, origem: 'convidado' };
+        // Evita duplicar se já entrou pelo checkbox
+        if (participantes.some(x => x.playerId == resolved.playerId)) return;
+        participantes.push(snapshotParticipante(resolved));
       });
       if (participantes.length === 0) {
         alert('Selecione pelo menos um jogador.');
@@ -3003,12 +3277,16 @@
         }
         novo = snapshotParticipante({ playerId, nome, origem });
       } else if (inp && inp.value.trim()) {
-        const nome = inp.value.trim();
-        if (p.participantes.some(x => x.nome.toLowerCase() === nome.toLowerCase())) {
+        const resolved = resolverJogadorPorNome(inp.value.trim());
+        if (!resolved) return;
+        if (p.participantes.some(x =>
+          x.playerId == resolved.playerId ||
+          x.nome.toLowerCase() === resolved.nome.toLowerCase()
+        )) {
           alert('Esse jogador já está na partida.');
           return;
         }
-        novo = snapshotParticipante({ playerId: Date.now(), nome, origem: 'convidado' });
+        novo = snapshotParticipante(resolved);
       } else {
         alert('Selecione um jogador ou digite um nome.');
         return;
@@ -3159,6 +3437,7 @@
           <button class="btn-add" style="background:#25d366;color:#000;width:100%;margin-bottom:8px" onclick="copiarPartidaWhats(${p.id})">💬 Copiar Partida p/ WhatsApp</button>
           <button class="btn-add" style="background:#5865F2;color:#fff;width:100%;margin-bottom:8px" onclick="copiarLinkAvaliacao(${p.id})">⭐ Link de avaliação</button>
           <button class="btn-secondary" onclick="importarAvaliacoesPartida(${p.id})">Importar avaliações (JSON)</button>
+          <button class="btn-secondary" style="color:#ff8a80" onclick="resetarAvaliacoesPartida(${p.id})">Resetar avaliações desta partida</button>
           <div class="card" style="margin-bottom:8px;padding:12px">
             <div class="section-title" style="margin-bottom:8px">BALANCEAR TIMES POR</div>
             <div class="bal-toggle" style="margin-bottom:6px">
@@ -3689,6 +3968,10 @@
         const va = document.getElementById('view-avaliar');
         if (va) va.innerHTML = '';
         avaliarUi.payload = null;
+        avaliarUi.avaliadorId = null;
+        avaliarUi.notas = {};
+        avaliarUi.stats = {};
+        avaliarUi.enviando = false;
         render();
       }
     });
