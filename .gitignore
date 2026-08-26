@@ -1,2 +1,5 @@
 # Seed de desenvolvimento local (não versionar)
 dev-seed.local.js
+
+# Backups exportados da app (contêm chave PIX e webhook do Discord)
+backup*.json

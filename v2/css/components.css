@@ -1,0 +1,856 @@
+/* Fut Manager v2 — cards, badges, botoes, modais, stats, times */
+
+.card {
+      background: #16161f;
+      border: 1px solid #222230;
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 12px;
+      min-width: 0;
+      max-width: 100%;
+    }
+
+.lucro-card {
+      background: linear-gradient(135deg, #003d1a, #00291a);
+      border: 1px solid #00e67622;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 12px;
+      position: relative;
+      overflow: hidden;
+    }
+
+.lucro-card::after {
+      content: '⚽';
+      position: absolute;
+      right: 16px;
+      bottom: 8px;
+      font-size: 3rem;
+      opacity: 0.1;
+    }
+
+.card-label {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.68rem;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: #555;
+      margin-bottom: 5px;
+    }
+
+.card-value {
+      font-size: 1.9rem;
+      letter-spacing: 2px;
+    }
+
+.card-detail {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.73rem;
+      color: #666;
+      margin-top: 4px;
+    }
+
+.green {
+      color: #00e676;
+    }
+
+.red {
+      color: #ff5252;
+    }
+
+.yellow {
+      color: #ffd740;
+    }
+
+.blue {
+      color: #40c4ff;
+    }
+
+.row-item {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 8px;
+      padding: 11px 0;
+      border-bottom: 1px solid #1a1a28;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.88rem;
+      min-width: 0;
+      max-width: 100%;
+    }
+
+.row-item:last-child {
+      border-bottom: none;
+    }
+
+.row-item-main {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+      flex: 1 1 120px;
+    }
+
+.row-item-main .player-nome {
+      font-family: 'DM Sans', sans-serif;
+      min-width: 0;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }
+
+.row-item-actions {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      flex: 1 1 auto;
+      max-width: 100%;
+      min-width: 0;
+    }
+
+.player-num {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 1.1rem;
+      color: #333;
+      width: 26px;
+      flex-shrink: 0;
+    }
+
+.badge {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 0.72rem;
+      letter-spacing: 1px;
+      padding: 5px 10px;
+      border-radius: 20px;
+      cursor: pointer;
+      border: none;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+.badge-green {
+      background: #003d1a;
+      color: #00e676;
+    }
+
+.badge-red {
+      background: #3d0000;
+      color: #ff5252;
+    }
+
+.badge-yellow {
+      background: #3d2e00;
+      color: #ffd740;
+    }
+
+.badge-nivel {
+      background: #1a1a2e;
+      color: #90caf9;
+    }
+
+.badge-av {
+      background: #2a1f14;
+      color: #ffb74d;
+      cursor: default;
+    }
+
+.bal-toggle {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 8px;
+      font-family: 'DM Sans', sans-serif;
+    }
+
+.bal-toggle button {
+      flex: 1;
+      padding: 10px 8px;
+      border-radius: 8px;
+      border: 1px solid #2a2a40;
+      background: #16161f;
+      color: #888;
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 1rem;
+      letter-spacing: 1px;
+      cursor: pointer;
+    }
+
+.bal-toggle button.active {
+      border-color: #00e676;
+      background: #003d1a;
+      color: #00e676;
+    }
+
+.bal-toggle button.active-av {
+      border-color: #ffb74d;
+      background: #2a1f14;
+      color: #ffb74d;
+    }
+
+.badge-gol {
+      background: #003d3d;
+      color: #00e5ff;
+    }
+
+.badge-linha {
+      background: #1a1a28;
+      color: #666;
+    }
+
+.btn-remove {
+      background: none;
+      border: none;
+      color: #2a2a3a;
+      cursor: pointer;
+      font-size: 1.1rem;
+      padding: 4px 10px;
+      flex-shrink: 0;
+    }
+
+.input-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 14px;
+      min-width: 0;
+      max-width: 100%;
+      align-items: stretch;
+    }
+
+.fut-input {
+      flex: 1 1 140px;
+      min-width: 0;
+      max-width: 100%;
+      background: #0e0e18;
+      border: 1px solid #2a2a40;
+      border-radius: 8px;
+      padding: 12px 14px;
+      color: #f0f0f0;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 1rem;
+      outline: none;
+      -webkit-appearance: none;
+      appearance: none;
+    }
+
+.fut-input:focus {
+      border-color: #00e676;
+    }
+
+.fut-input--valor {
+      flex: 0 1 90px;
+      min-width: 72px;
+      max-width: 110px;
+    }
+
+.btn-add {
+      background: #00e676;
+      color: #000;
+      border: none;
+      border-radius: 8px;
+      padding: 12px 16px;
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 1rem;
+      letter-spacing: 1px;
+      cursor: pointer;
+      white-space: nowrap;
+      flex: 0 0 auto;
+    }
+
+.pendentes-bar {
+      background: #1a1a28;
+      border-radius: 6px;
+      height: 6px;
+      margin-top: 8px;
+      overflow: hidden;
+    }
+
+.pendentes-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #00e676, #00bcd4);
+      border-radius: 6px;
+      transition: width 0.4s;
+    }
+
+.edit-hint {
+      font-size: 0.75rem;
+      color: #333;
+    }
+
+.custo-edit {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+.stat-ctrl {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+.stat-btn {
+      width: 28px;
+      height: 28px;
+      border-radius: 6px;
+      border: 1px solid #2a2a40;
+      background: #0e0e18;
+      color: #00e676;
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 1.1rem;
+      line-height: 1;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+.stat-val {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 1.1rem;
+      min-width: 18px;
+      text-align: center;
+    }
+
+.stat-row {
+      display: flex;
+      gap: 0;
+      flex-wrap: nowrap;
+      margin-top: 8px;
+      width: 100%;
+      min-width: 0;
+      max-width: 100%;
+    }
+
+.stat-group {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      flex: 1 1 0;
+      min-width: 0;
+      padding: 4px 4px;
+      border-right: 1px solid #2a2a40;
+    }
+
+.stat-group:last-child {
+      border-right: none;
+    }
+
+.stat-group label {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.65rem;
+      color: #666;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+
+.stats-teams-head {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      align-items: start;
+      margin-bottom: 6px;
+    }
+
+.team-col-title {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 0.95rem;
+      letter-spacing: 1px;
+      padding: 4px 0;
+    }
+
+.team-col-title.a {
+      color: #42a5f5;
+    }
+
+.team-col-title.b {
+      color: #ab47bc;
+    }
+
+.stats-pair-cell {
+      min-width: 0;
+    }
+
+.stats-teams-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      width: 100%;
+      max-width: 100%;
+      min-width: 0;
+    }
+
+.stats-pair-row {
+      display: flex;
+      flex-direction: column;
+      flex-wrap: nowrap;
+      gap: 10px;
+      align-items: stretch;
+      width: 100%;
+      max-width: 100%;
+      min-width: 0;
+      box-sizing: border-box;
+    }
+
+.stats-pair-row--duo {
+      flex-direction: column;
+    }
+
+.stats-pair-row--duo .team-panel {
+      flex: 1 1 auto;
+      width: 100%;
+      min-width: 0;
+      max-width: 100%;
+      box-sizing: border-box;
+    }
+
+.stats-pair-row:not(.stats-pair-row--duo) .team-panel {
+      flex: 1 1 auto;
+      width: 100%;
+      min-width: 0;
+      max-width: 100%;
+    }
+
+@media (min-width: 700px) {
+      .stats-pair-row--duo {
+        flex-direction: row;
+        align-items: stretch;
+      }
+
+      .stats-pair-row--duo .team-panel {
+        flex: 1 1 0;
+        width: auto;
+      }
+    }
+
+.team-panel {
+      border: 2px solid #2a2a40;
+      border-radius: 10px;
+      padding: 10px 8px;
+      background: #111118;
+      min-height: 80px;
+      min-width: 0;
+      max-width: 100%;
+      overflow: hidden;
+      transition: border-color 0.15s, background 0.15s;
+    }
+
+.team-panel-dragover {
+      background: #1a1a28;
+      box-shadow: inset 0 0 0 1px #00e67655;
+    }
+
+.team-panel-title {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 0.95rem;
+      letter-spacing: 1px;
+      margin-bottom: 6px;
+    }
+
+.team-panel-hint {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.65rem;
+      color: #444;
+      margin-bottom: 8px;
+    }
+
+.stat-player {
+      border: 1px solid #2a2a40;
+      border-radius: 8px;
+      padding: 10px 8px;
+      margin-bottom: 8px;
+      background: #0e0e18;
+      cursor: grab;
+    }
+
+.stat-player:active {
+      cursor: grabbing;
+    }
+
+.stat-player-dragging {
+      opacity: 0.45;
+    }
+
+.stat-player-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 4px;
+      margin-bottom: 2px;
+    }
+
+.stat-player-name {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.78rem;
+      line-height: 1.25;
+      word-break: break-word;
+      flex: 1;
+    }
+
+.team-move-sel {
+      background: #0e0e18;
+      border: 1px solid #2a2a40;
+      border-radius: 6px;
+      color: #90caf9;
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 0.75rem;
+      padding: 2px 4px;
+      max-width: 52px;
+      cursor: pointer;
+    }
+
+.stat-player .stat-group {
+      padding: 2px 4px;
+    }
+
+.stat-player .stat-btn {
+      width: 26px;
+      height: 26px;
+      font-size: 0.95rem;
+    }
+
+.stat-player .stat-val {
+      font-size: 0.95rem;
+      min-width: 14px;
+    }
+
+.stat-player .stat-group label {
+      font-size: 0.55rem;
+    }
+
+.teams-wrap .card {
+      margin: 0;
+      border: 2px solid #2a2a40;
+    }
+
+.confirm-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.72);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+      padding: 24px;
+    }
+
+.confirm-box {
+      background: #151520;
+      border: 1px solid #2a2a40;
+      border-radius: 12px;
+      padding: 20px;
+      max-width: 340px;
+      width: 100%;
+    }
+
+.confirm-box p {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.95rem;
+      color: #ddd;
+      line-height: 1.4;
+      margin-bottom: 16px;
+    }
+
+.confirm-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+.confirm-actions button {
+      flex: 1;
+      border: none;
+      border-radius: 8px;
+      padding: 12px;
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 1rem;
+      letter-spacing: 1px;
+      cursor: pointer;
+    }
+
+.confirm-cancel {
+      background: #3a3a4f;
+      color: #f0f0f0;
+    }
+
+.confirm-ok {
+      background: #ff5252;
+      color: #fff;
+    }
+
+.btn-section-action {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.7rem;
+      font-weight: 500;
+      letter-spacing: 0.3px;
+      padding: 5px 10px;
+      border-radius: 8px;
+      border: 1px solid #2a2a40;
+      background: #1a1a28;
+      color: #00bcd4;
+      cursor: pointer;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+.hist-debitos-box {
+      max-width: 420px;
+      max-height: 80vh;
+      display: flex;
+      flex-direction: column;
+      padding: 16px 18px;
+    }
+
+.hist-debitos-box .hist-title {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 1.15rem;
+      letter-spacing: 2px;
+      color: #aaa;
+      margin-bottom: 12px;
+    }
+
+.hist-debitos-body {
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      flex: 1;
+      margin-bottom: 14px;
+    }
+
+.hist-mes-titulo {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 0.85rem;
+      letter-spacing: 1.5px;
+      color: #00bcd4;
+      margin: 12px 0 6px;
+    }
+
+.hist-mes-titulo:first-child {
+      margin-top: 0;
+    }
+
+.hist-empty {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.85rem;
+      color: #555;
+      text-align: center;
+      padding: 20px 8px;
+    }
+
+.teams-wrap {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 8px;
+      margin-bottom: 8px;
+      min-width: 0;
+      max-width: 100%;
+    }
+
+@media (min-width: 700px) {
+      .teams-wrap {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+
+.filter-row {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 12px;
+    }
+
+.filter-btn {
+      flex: 1;
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 0.85rem;
+      letter-spacing: 1px;
+      padding: 10px 8px;
+      border-radius: 8px;
+      border: 1px solid #2a2a40;
+      background: #0e0e18;
+      color: #666;
+      cursor: pointer;
+    }
+
+.filter-btn.active {
+      background: #003d1a;
+      color: #00e676;
+      border-color: #00e67655;
+    }
+
+.chk-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 0;
+      border-bottom: 1px solid #1a1a28;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.88rem;
+    }
+
+.chk-row:last-child {
+      border-bottom: none;
+    }
+
+.chk-row input {
+      width: 18px;
+      height: 18px;
+      accent-color: #00e676;
+    }
+
+.rank-pos {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 1.2rem;
+      color: #00e676;
+      width: 28px;
+    }
+
+.rank-stats {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.75rem;
+      color: #888;
+      text-align: right;
+    }
+
+.team-badge {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 0.7rem;
+      padding: 2px 8px;
+      border-radius: 4px;
+      margin-left: 6px;
+    }
+
+.team-a {
+      background: #0d47a1;
+      color: #40c4ff;
+    }
+
+.team-b {
+      background: #4a148c;
+      color: #e040fb;
+    }
+
+.btn-secondary {
+      background: #3a3a4f;
+      color: #f0f0f0;
+      border: none;
+      border-radius: 8px;
+      padding: 12px 16px;
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 1rem;
+      letter-spacing: 1px;
+      cursor: pointer;
+      white-space: nowrap;
+      width: 100%;
+      margin-bottom: 8px;
+    }
+
+.btn-back {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.85rem;
+      color: #00bcd4;
+      background: none;
+      border: none;
+      cursor: pointer;
+      margin-bottom: 12px;
+      padding: 0;
+    }
+
+.hint-warn {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.75rem;
+      color: #ffd740;
+      margin-top: 6px;
+    }
+
+.avaliar-title {
+      font-size: 1.8rem;
+      letter-spacing: 2px;
+      background: linear-gradient(90deg, #00e676, #00bcd4);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 6px;
+    }
+
+.avaliar-sub {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.85rem;
+      color: #888;
+      margin-bottom: 16px;
+      line-height: 1.4;
+    }
+
+.avaliar-nota-row {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      padding: 12px 0;
+      border-bottom: 1px solid #1e1e2a;
+      font-family: 'DM Sans', sans-serif;
+    }
+
+.avaliar-nota-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+    }
+
+.avaliar-nota-btns {
+      display: flex;
+      gap: 4px;
+      flex-shrink: 0;
+    }
+
+.avaliar-nota-btns button {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      border: 1px solid #2a2a3a;
+      background: #16161f;
+      color: #aaa;
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 1rem;
+      cursor: pointer;
+    }
+
+.avaliar-nota-btns button.sel {
+      background: #00e676;
+      border-color: #00e676;
+      color: #000;
+    }
+
+.avaliar-ga {
+      display: flex;
+      gap: 16px;
+      align-items: center;
+    }
+
+.avaliar-ga-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.8rem;
+      color: #888;
+    }
+
+.avaliar-ga-item .stat-btn {
+      width: 28px;
+      height: 28px;
+      font-size: 1rem;
+    }
+
+.avaliar-ga-item .stat-val {
+      min-width: 1.2rem;
+      text-align: center;
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 1.1rem;
+      color: #e8e8e8;
+    }
+
+.avaliar-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-top: 16px;
+    }

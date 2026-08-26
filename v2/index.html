@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Fut Manager v2">
+  <meta name="theme-color" content="#0a0a0f">
+  <link rel="manifest" href="./manifest.json">
+  <link rel="apple-touch-icon" href="../icon-192.png">
+  <title>Fut Manager v2</title>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;700&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="./css/base.css">
+  <link rel="stylesheet" href="./css/components.css">
+</head>
+
+<body>
+  <div id="login-screen" class="confirm-overlay" style="display:none;z-index:10000">
+    <div class="confirm-box" style="max-width:360px">
+      <div class="hist-title" style="margin-bottom:12px">Admin — Fut Manager v2</div>
+      <input type="email" id="login-email" class="fut-input" placeholder="E-mail" style="width:100%;margin-bottom:8px;flex:none">
+      <input type="password" id="login-password" class="fut-input" placeholder="Senha" style="width:100%;margin-bottom:12px;flex:none">
+      <p id="login-error" style="font-family:DM Sans,sans-serif;color:#ff5252;font-size:0.8rem;display:none;margin-bottom:8px"></p>
+      <button type="button" class="btn-add" id="login-submit" style="width:100%">Entrar</button>
+    </div>
+  </div>
+
+  <div id="view-avaliar"></div>
+
+  <div class="header-stripe"></div>
+  <div class="header">
+    <div class="header-top">
+      <div class="header-title">⚽ FUT MANAGER</div>
+      <span class="badge badge-nivel" title="Versão 2" style="margin-left:4px;flex-shrink:0">v2</span>
+      <span class="save-badge save-saved" id="save-badge" style="display:none">✓ SALVO</span>
+    </div>
+    <div class="header-fut-row">
+      <select id="fut-selector" class="fut-input fut-selector" onchange="trocarFut(this.value)" title="Trocar fut"></select>
+    </div>
+    <div class="header-sub clickable" id="header-mes-ano" onclick="editMesAno()" style="cursor: pointer;">Futsal Quarta
+      — Junho 2025</div>
+    <div class="tabs">
+      <button class="tab-btn active" onclick="setTab('resumo')">Resumo</button>
+      <button class="tab-btn" onclick="setTab('mensalistas')">Mensal.</button>
+      <button class="tab-btn" onclick="setTab('avulsos')">Avulsos</button>
+      <button class="tab-btn" onclick="setTab('partidas')">Partidas</button>
+      <button class="tab-btn" onclick="setTab('ranking')">Ranking</button>
+      <button class="tab-btn" onclick="setTab('ajustes')">Ajustes</button>
+    </div>
+  </div>
+
+  <div class="content">
+    <div id="tab-resumo" class="tab-content active">
+      <div class="lucro-card">
+        <div class="card-label">Valor em caixa</div>
+        <div class="card-value" id="lucro-valor">R$ 0,00</div>
+        <div class="card-detail" id="lucro-detalhe"></div>
+      </div>
+
+      <button class="btn-add"
+        style="background:#25d366; color:#000; font-weight:bold; width:100%; margin-bottom:12px; display:flex; align-items:center; justify-content:center; gap:8px;"
+        onclick="copiarResumoWhats()">
+        <span>💬 Copiar Resumo p/ WhatsApp</span>
+      </button>
+
+      <div class="grid2">
+        <div class="card clickable" onclick="editSaldo()">
+          <div class="card-label">💰 Saldo anterior</div>
+          <div class="card-value green" id="saldo-val">R$ 0,00</div>
+          <div class="card-detail">Toque para editar</div>
+        </div>
+        <div class="card clickable" onclick="editAvulsosAnt()">
+          <div class="card-label">⏳ Avulsos mês ant.</div>
+          <div class="card-value yellow" id="avant-val">R$ 0,00</div>
+          <div class="card-detail" id="avant-detalhe"></div>
+        </div>
+      </div>
+      <div class="grid2">
+        <div class="card">
+          <div class="card-label">Mensalistas pagos</div>
+          <div class="card-value green" id="mens-val">R$ 0,00</div>
+          <div class="card-detail" id="mens-detalhe"></div>
+        </div>
+        <div class="card">
+          <div class="card-label">Avulsos pagos</div>
+          <div class="card-value blue" id="avpagos-val">R$ 0,00</div>
+          <div class="card-detail" id="avpagos-detalhe"></div>
+        </div>
+      </div>
+      <div class="grid2">
+        <div class="card">
+          <div class="card-label">A receber ainda</div>
+          <div class="card-value yellow" id="areceber-val">R$ 0,00</div>
+          <div class="card-detail" id="areceber-detalhe"></div>
+        </div>
+        <div class="card clickable" onclick="editCusto()">
+          <div class="card-label">Custo da quadra</div>
+          <div class="card-value" id="custo-val">R$ 0,00</div>
+          <div class="card-detail">Toque para editar</div>
+        </div>
+      </div>
+      <div class="card clickable" onclick="setTab('ajustes')">
+        <div class="card-label">Outros débitos</div>
+        <div class="card-value red" id="debitos-val">R$ 0,00</div>
+        <div class="card-detail" id="debitos-detalhe">Toque para gerenciar em Ajustes</div>
+      </div>
+      <div class="card">
+        <div class="card-label">Progresso mensalistas</div>
+        <div id="progresso-txt" style="font-family:'DM Sans',sans-serif;font-size:0.85rem;color:#888;margin-top:4px">
+        </div>
+        <div class="pendentes-bar">
+          <div class="pendentes-fill" id="progresso-fill" style="width:0%"></div>
+        </div>
+      </div>
+      <div class="card" id="pendentes-card" style="display:none">
+        <div class="card-label" style="color:#ff5252">⏳ Pendentes</div>
+        <div id="pendentes-lista"></div>
+      </div>
+    </div>
+
+    <div id="tab-mensalistas" class="tab-content">
+      <div class="input-row">
+        <input class="fut-input" id="inp-mens" placeholder="Nome do jogador..."
+          onkeydown="if(event.key==='Enter')addMensalista()">
+        <button class="btn-add" onclick="addMensalista()">+ ADD</button>
+      </div>
+
+      <button class="btn-add"
+        style="background:#25d366; color:#000; font-weight:bold; width:100%; margin-bottom:12px; display:flex; align-items:center; justify-content:center; gap:8px;"
+        onclick="copiarMensalistasWhats()">
+        <span>💬 Copiar Lista p/ WhatsApp</span>
+      </button>
+
+      <div class="card">
+        <div class="section-title" id="mens-secao-titulo">MENSALISTAS — R$ 35</div>
+        <div id="mens-lista"></div>
+      </div>
+    </div>
+
+    <div id="tab-avulsos" class="tab-content">
+      <div class="input-row">
+        <input class="fut-input" id="inp-av" placeholder="Nome do avulso..."
+          onkeydown="if(event.key==='Enter')addAvulso()">
+        <select class="fut-input" id="sel-av" style="flex:0 0 100px">
+          <option value="pago">Pago</option>
+          <option value="pendente">Pendente</option>
+        </select>
+        <button class="btn-add" onclick="addAvulso()">+ ADD</button>
+      </div>
+      <div id="avulsos-wrap"></div>
+      <div class="grid2" style="margin-top:12px">
+        <div class="card">
+          <div class="card-label">Pagos</div>
+          <div class="card-value green" id="avtotal-pagos">R$ 0,00</div>
+          <div class="card-detail" id="avtotal-pagos-d"></div>
+        </div>
+        <div class="card">
+          <div class="card-label">Pendentes</div>
+          <div class="card-value yellow" id="avtotal-pend">R$ 0,00</div>
+          <div class="card-detail" id="avtotal-pend-d"></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="tab-partidas" class="tab-content">
+      <div id="partidas-root"></div>
+    </div>
+
+    <div id="tab-ranking" class="tab-content">
+      <div class="filter-row">
+        <button class="filter-btn active" id="rank-filtro-mensal" onclick="setRankingFiltro('mensal')">Mensal</button>
+        <button class="filter-btn" id="rank-filtro-partida" onclick="setRankingFiltro('partida')">Partida</button>
+        <button class="filter-btn" id="rank-filtro-total" onclick="setRankingFiltro('total')">Total</button>
+      </div>
+      <div id="rank-partida-select-wrap" style="display:none;margin-bottom:12px">
+        <select class="fut-input" id="rank-partida-select" onchange="onRankingPartidaChange()"></select>
+      </div>
+      <button class="btn-add"
+        style="background:#25d366; color:#000; font-weight:bold; width:100%; margin-bottom:12px; display:flex; align-items:center; justify-content:center; gap:8px;"
+        onclick="copiarRankingWhats()">
+        <span>💬 Copiar Ranking p/ WhatsApp</span>
+      </button>
+      <div class="card">
+        <div class="section-title" id="rank-titulo">RANKING</div>
+        <div id="rank-lista"></div>
+      </div>
+    </div>
+
+    <div id="tab-ajustes" class="tab-content">
+      <div class="card">
+        <div class="section-title">Conta</div>
+        <p style="font-family:'DM Sans',sans-serif; font-size:0.8rem; color:#888; margin-bottom:12px; line-height:1.4;">
+          Encerra a sessão de administrador neste aparelho.
+        </p>
+        <button class="btn-add" style="background:#3a3a4f; color:#f0f0f0;" onclick="deslogar()">Sair da conta</button>
+      </div>
+
+      <div class="card">
+        <div class="section-title">Mês vigente</div>
+        <div style="display:flex; flex-direction:column; gap:8px; font-family:'DM Sans',sans-serif; font-size:0.9rem;">
+          <p style="font-size:0.8rem; color:#888; line-height:1.4; margin:0;">
+            Período financeiro atual. Ao iniciar um novo mês, avança automaticamente para o próximo.
+          </p>
+          <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
+            <span style="color:#aaa;">Mês:</span>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <select class="fut-input" id="cfg-mes" style="max-width:150px; padding:8px 10px; margin:0;" onchange="updateMesVigente()">
+                <option value="0">Janeiro</option>
+                <option value="1">Fevereiro</option>
+                <option value="2">Março</option>
+                <option value="3">Abril</option>
+                <option value="4">Maio</option>
+                <option value="5">Junho</option>
+                <option value="6">Julho</option>
+                <option value="7">Agosto</option>
+                <option value="8">Setembro</option>
+                <option value="9">Outubro</option>
+                <option value="10">Novembro</option>
+                <option value="11">Dezembro</option>
+              </select>
+              <input type="number" class="fut-input" id="cfg-ano" min="2020" max="2100"
+                style="max-width:90px; padding:8px 10px; margin:0;" onchange="updateMesVigente()">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="section-title">Valores das Taxas</div>
+        <div style="display:flex; flex-direction:column; gap:12px; font-family:'DM Sans',sans-serif; font-size:0.9rem;">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span style="color:#aaa;">Valor Mensalidade:</span>
+            <div style="display:flex; align-items:center; gap:5px;">
+              <span style="color:#666;">R$</span>
+              <input type="number" class="fut-input" id="cfg-mensalidade"
+                style="max-width:100px; padding:8px 10px; margin:0;" onchange="updateTaxas()">
+            </div>
+          </div>
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span style="color:#aaa;">Valor do Avulso:</span>
+            <div style="display:flex; align-items:center; gap:5px;">
+              <span style="color:#666;">R$</span>
+              <input type="number" class="fut-input" id="cfg-avulso"
+                style="max-width:100px; padding:8px 10px; margin:0;" onchange="updateTaxas()">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="section-title">Pelada</div>
+        <div style="display:flex; flex-direction:column; gap:12px; font-family:'DM Sans',sans-serif; font-size:0.9rem;">
+          <p style="font-size:0.8rem; color:#888; line-height:1.4; margin:0;">
+            Dia, horário e data de início usados como padrão ao criar uma nova partida.
+          </p>
+          <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
+            <span style="color:#aaa; flex-shrink:0;">Dia da semana:</span>
+            <select class="fut-input" id="cfg-pelada-dia" style="max-width:180px; padding:8px 10px; margin:0;" onchange="updatePeladaConfig()">
+              <option value="0">Domingo</option>
+              <option value="1">Segunda-feira</option>
+              <option value="2">Terça-feira</option>
+              <option value="3">Quarta-feira</option>
+              <option value="4">Quinta-feira</option>
+              <option value="5">Sexta-feira</option>
+              <option value="6">Sábado</option>
+            </select>
+          </div>
+          <div class="grid2" style="margin-bottom:0">
+            <div>
+              <div class="card-label">Início (24h)</div>
+              <input type="text" class="fut-input" id="cfg-pelada-inicio" inputmode="numeric" placeholder="21:00" maxlength="5" onchange="updatePeladaConfig()">
+            </div>
+            <div>
+              <div class="card-label">Fim (24h)</div>
+              <input type="text" class="fut-input" id="cfg-pelada-fim" inputmode="numeric" placeholder="23:00" maxlength="5" onchange="updatePeladaConfig()">
+            </div>
+          </div>
+          <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
+            <span style="color:#aaa; flex-shrink:0;">Data de início:</span>
+            <input type="text" class="fut-input" id="cfg-pelada-data-inicio" inputmode="numeric" placeholder="dd/mm/aaaa"
+              style="max-width:140px; padding:8px 10px; margin:0;" onchange="updatePeladaConfig()">
+          </div>
+          <p style="font-size:0.75rem; color:#666; line-height:1.4; margin:0;">
+            A data sugerida na nova partida não será anterior a esta data (opcional).
+          </p>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="section-title">Times (futsal)</div>
+        <div style="display:flex; flex-direction:column; gap:8px; font-family:'DM Sans',sans-serif; font-size:0.9rem;">
+          <p style="font-size:0.8rem; color:#888; line-height:1.4; margin:0;">
+            Tamanho ideal de cada time. Ex.: 15 → 3×5; 20 → 4×5; 13 → 5+5+3 (completa o ideal antes de sobrar).
+          </p>
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span style="color:#aaa;">Jogadores por time:</span>
+            <input type="number" class="fut-input" id="cfg-jogadores-por-time" min="1" max="11"
+              style="max-width:80px; padding:8px 10px; margin:0;" onchange="updateJogadoresPorTime()">
+          </div>
+          <p style="font-size:0.75rem; color:#666; line-height:1.4; margin:4px 0 0;">
+            Balanceamento padrão ao montar times (também dá para trocar na partida):
+          </p>
+          <div class="bal-toggle" style="margin-bottom:0">
+            <button type="button" id="cfg-bal-nivel" class="active" onclick="setBalanceamentoTimes('nivel')">Nv (manual)</button>
+            <button type="button" id="cfg-bal-av" onclick="setBalanceamentoTimes('avaliacao')">Av (avaliações)</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="section-title">Admin do grupo</div>
+        <div style="display:flex; flex-direction:column; gap:8px; font-family:'DM Sans',sans-serif; font-size:0.9rem;">
+          <p style="font-size:0.8rem; color:#888; line-height:1.4; margin:0;">
+            Quem organiza o grupo: joga, não paga mensalidade e aparece nas partidas.
+          </p>
+          <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; min-width:0;">
+            <span style="color:#aaa; flex-shrink:0;">Nome:</span>
+            <input type="text" class="fut-input" id="cfg-admin-nome"
+              style="max-width:200px; flex:1; min-width:0; padding:8px 10px; margin:0;" placeholder="Ex.: João" onchange="updateAdminNome()">
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="section-title">Avaliações (Discord)</div>
+        <div style="display:flex; flex-direction:column; gap:10px; font-family:'DM Sans',sans-serif; font-size:0.9rem;">
+          <p style="font-size:0.8rem; color:#888; line-height:1.4; margin:0;">
+            Cole a URL do webhook do Discord. Ela fica só neste aparelho e entra ofuscada no link de avaliação da partida.
+          </p>
+          <input type="password" class="fut-input" id="cfg-discord-webhook" placeholder="https://discord.com/api/webhooks/…"
+            autocomplete="off" onchange="updateDiscordWebhook()">
+          <button type="button" class="btn-secondary" onclick="testarDiscordWebhook()">Testar webhook</button>
+          <div class="section-title" style="margin-top:8px;margin-bottom:0">Importar avaliações</div>
+          <p style="font-size:0.75rem; color:#666; line-height:1.4; margin:0;">
+            Cole o JSON (ou vários) que chegou no Discord. Atualiza o nível Av (média das notas) e, se vier no JSON, gols/assistências da partida (média dos relatos). O Nv manual não muda.
+          </p>
+          <textarea class="fut-input" id="inp-import-avaliacoes" rows="5"
+            placeholder='{"v":1,"tipo":"avaliacao-partida",...}'
+            style="font-family:monospace;font-size:0.75rem;resize:vertical;min-height:90px"></textarea>
+          <button type="button" class="btn-add" style="background:#1565c0;color:#fff" onclick="importarAvaliacoesDaUi()">Importar JSON</button>
+          <button type="button" class="btn-add" style="background:#ff5252;color:#fff" onclick="resetarAvaliacoes()">Resetar avaliações</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="section-title">Chave Pix</div>
+        <div style="display:flex; flex-direction:column; gap:8px; font-family:'DM Sans',sans-serif; font-size:0.9rem;">
+          <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; min-width:0;">
+            <span style="color:#aaa; flex-shrink:0;">Chave Pix:</span>
+            <input type="text" class="fut-input" id="cfg-pix"
+              style="max-width:200px; flex:1; min-width:0; padding:8px 10px; margin:0;" placeholder="Sua chave Pix..." onchange="updatePix()">
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="section-title" style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+          <span>Outros débitos do caixa</span>
+          <button type="button" class="btn-section-action" onclick="abrirHistoricoDebitos()">Histórico</button>
+        </div>
+        <p style="font-family:'DM Sans',sans-serif; font-size:0.8rem; color:#888; margin-bottom:12px; line-height:1.4;">
+          Gastos avulsos (bola, colete, água, etc.). Ao cadastrar, o valor é debitado do caixa e salvo; ao remover, o valor volta.
+        </p>
+        <div class="input-row" style="margin-bottom:10px">
+          <input class="fut-input" id="inp-debito-desc" placeholder="Descrição (ex.: bola)"
+            onkeydown="if(event.key==='Enter')addDebito()">
+          <input type="number" class="fut-input fut-input--valor" id="inp-debito-valor" placeholder="R$" min="0" step="0.01"
+            onkeydown="if(event.key==='Enter')addDebito()">
+          <button class="btn-add" onclick="addDebito()">+ ADD</button>
+        </div>
+        <div id="debitos-lista"></div>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px; font-family:'DM Sans',sans-serif; font-size:0.85rem;">
+          <span style="color:#888;">Total débitos</span>
+          <span class="red" id="debitos-total-cfg">R$ 0,00</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="section-title">⚽ Meus futs</div>
+        <p style="font-family:'DM Sans',sans-serif; font-size:0.8rem; color:#888; margin-bottom:12px; line-height:1.4;">
+          Cada fut é um pelada independente (financeiro, jogadores, partidas). Use o seletor no topo para alternar.
+        </p>
+        <button class="btn-add" style="background:#1565c0; color:#fff;" onclick="criarNovoFut()">+ Novo fut</button>
+        <p style="font-family:'DM Sans',sans-serif; font-size:0.75rem; color:#666; margin-top:12px; margin-bottom:8px; line-height:1.4;">
+          Remove só o fut selecionado no topo. Ação irreversível — exporte um backup antes, se precisar.
+        </p>
+        <button class="btn-add" style="background:#ff5252; color:#fff;" onclick="apagarFutAtual()">Apagar fut atual</button>
+      </div>
+
+      <div class="card">
+        <div class="section-title">📦 Backup dos Dados</div>
+        <p style="font-family:'DM Sans',sans-serif; font-size:0.8rem; color:#888; margin-bottom:12px; line-height:1.4;">
+          Exporte um backup de vez em quando. Para migrar da v1: exporte na v1 e cole o JSON abaixo (só o fut ativo na
+          nuvem; partidas e avaliações não vêm).
+        </p>
+        <div style="display:flex; flex-direction:column; gap:10px;">
+          <button class="btn-add" style="background:#1565c0; color:#fff;" onclick="exportarBackup()">📥 Exportar Backup
+            (Copiar)</button>
+          <textarea class="fut-input" id="inp-import-backup" rows="6"
+            placeholder='Cole aqui o JSON exportado (v1 ou v2)…'
+            style="font-family:monospace;font-size:0.75rem;resize:vertical;min-height:110px"></textarea>
+          <button class="btn-add" id="btn-import-backup" style="background:#3a3a4f; color:#f0f0f0;" onclick="importarBackup()">📤 Importar
+            Backup</button>
+          <p id="import-backup-status" style="font-family:'DM Sans',sans-serif;font-size:0.8rem;color:#ff5252;display:none;margin:0;line-height:1.4"></p>
+        </div>
+      </div>
+
+      <div class="card" style="border: 1px solid #ff525244;">
+        <div class="section-title" style="color:#ff5252;">📅 Fechamento Mensal</div>
+        <p style="font-family:'DM Sans',sans-serif; font-size:0.8rem; color:#888; margin-bottom:12px; line-height:1.4;">
+          Ao iniciar um novo mês: avança o período para o mês seguinte, os pagamentos dos mensalistas serão zerados, a lista de avulsos e débitos será limpa e o caixa
+          atual vira o saldo inicial do próximo mês. Partidas e ranking são preservados.
+        </p>
+        <button class="btn-add" style="background:#ff5252; color:#fff;" onclick="iniciarNovoMes()">🆕 Iniciar Novo
+          Mês</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="./js/main.js"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('./sw.js', { scope: './' });
+    }
+  </script>
+</body>
+
+</html>
