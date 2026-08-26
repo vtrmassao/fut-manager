@@ -24,9 +24,9 @@ Dois domínios no mesmo app:
 - Login admin (Supabase Auth) com `app_metadata.role = 'admin'` para financeiro/config/partidas.
 - **Multi-fut**: cada login admin gerencia um ou mais **futs** (`futs.owner_id = auth.uid()`). Dados (config, jogadores, partidas…) têm `fut_id`; RLS com `is_admin()` + `owns_fut()`. Após login: escolher/criar fut → hydrate escopado. Seletor no header + **Ajustes → Novo fut** / **Apagar fut atual** (DELETE em `futs` com CASCADE). Logout: **Ajustes → Sair da conta** (`deslogar()` → `auth.signOut` + reload). RPC `create_fut(nome)`.
 - IDs: **UUID** (`crypto.randomUUID()`). Admin-jogador: um por fut (`jogadores.tipo = 'admin'`), UUID gerado no `create_fut`.
-- Schema SQL versionado em [`supabase/migrations/`](supabase/migrations/). Inclui grants: **`authenticated`** tem SELECT/INSERT/UPDATE/DELETE nas tabelas (+ `futs`); **`anon` não** (avaliações públicas só via `submit-avaliacao` + service role). RLS: `is_admin()` + `owns_fut(fut_id)` por tabela. Sem GRANT de tabela o PostgREST devolve 42501 e o `render()` nunca preenche Ajustes.
-- Edge Functions: `import-backup`, `export-backup` (JWT admin + `futId` no body), `submit-avaliacao` (anon → service role; recalc Av escopado ao fut da partida).
-- Avaliações pelo link `#a=` gravam via `submit-avaliacao` (e Discord se houver webhook).
+- Schema SQL versionado em [`supabase/migrations/`](supabase/migrations/). Inclui grants: **`authenticated`** tem SELECT/INSERT/UPDATE/DELETE nas tabelas (+ `futs`); **`anon` não** (avaliações públicas só via `submit-avaliacao` / `get-partida-avaliacao` + service role). RLS: `is_admin()` + `owns_fut(fut_id)` por tabela. Sem GRANT de tabela o PostgREST devolve 42501 e o `render()` nunca preenche Ajustes.
+- Edge Functions: `import-backup`, `export-backup` (JWT admin + `futId` no body), `submit-avaliacao` (anon → service role; grava pendente + Discord), `get-partida-avaliacao` (anon; roster), `approve-avaliacao` (JWT admin; aprova/rejeita + recalc Av/G/A/D).
+- Avaliações pelo link `#a=` gravam via `submit-avaliacao` como pendentes; Av/stats só após aprovação do admin.
 - Projeto Supabase: **fut-manager** (`lajdoswgtgcuazviewgb`, `sa-east-1`).
 - PWA própria: `v2/manifest.json`, `v2/sw.js` (cache `futmanager-v2-…`), scope `/fut-manager/v2/`.
 - Migrar financeiro da v1: Exportar backup na v1 → **Ajustes → Importar Backup** na v2 (prompt no navegador; chama `import-backup`). Ignora `partidas` e `avaliacoes`. Não versionar o JSON (`backup*.json` no `.gitignore`).
@@ -139,7 +139,9 @@ O loader só injeta o script em host local; em produção o seed não carrega.
   avaliacoes: [{
     id, partidaId, data, avaliadorId,
     notas: { [avaliadoId]: 1-5 },
-    stats: { [playerId]: { gols, assistencias, defesas? } },  // autodeclaração no link #a= (só do avaliador; defesas se goleiro)
+    stats: { [playerId]: { gols, assistencias, defesas? } },
+    aprovadaEm,     // ISO | null — só aprovadas entram no Av / G/A/D
+    rejeitadaEm,    // ISO | null
     importadoEm
   }]
 }
@@ -155,18 +157,19 @@ O loader só injeta o script em host local; em produção o seed não carrega.
 
 ## Avaliações pós-partida (nível por pares)
 
-1. Em **Ajustes**: colar URL do webhook Discord (+ Testar webhook); importar JSON(s) de avaliação; **Resetar avaliações** apaga todas (Av volta a ?; G/A das partidas não mudam)
-2. Na partida: **Link de avaliação** gera `#a=<jsonB64>.<idB64>~<token>` — roster no JSON flat `{ v, p, d, j }`; webhook **fora** do JSON. O snowflake vai como `uint64` BE em base64url; o token fica em texto. Prefixo Discord fixo no código. Links legados com `w` texto dentro do JSON ainda abrem. Na partida também dá para importar/resetar só as avaliações dela.
-3. Quem abre o link (app em URL pública): escolhe “quem sou eu”, nota 1–5 nos outros, registra **só os próprios** gols/assistências (e **defesas** se for goleiro no roster), **Enviar** → POST no Discord (fallback: copiar JSON). Pacote inclui `stats: { [avaliadorId]: { gols, assistencias, defesas? } }`. O roster do link marca goleiro como `[id, nome, 1]`.
-4. Admin importa o JSON do canal → dedupe `(partidaId, avaliadorId)` → atualiza `nivelAvaliacao` (média das notas recebidas) e, se houver `stats`, gols/assistências/defesas dos participantes (cada um declara os próprios). O **Nv** manual **não** é sobrescrito.
-5. **Todos os participantes da partida** entram na avaliação (admin, mensalista, avulso e convidado). Notas só atualizam Av no cadastro de admin/mensalista/avulso; gols/assistências aplicam em qualquer participante. Digitar um nome que já existe no cadastro reusa o id/origem (não cria convidado fantasma).
-6. Badges no cadastro: **Nv** (manual, cicla) + **Av** (avaliações; `title` com média exata)
+1. Em **Ajustes**: colar URL do webhook Discord (+ Testar webhook); **Resetar avaliações** apaga todas (Av volta a ?; G/A/D das partidas voltam a 0)
+2. Na partida: **Link de avaliação** gera `#a=<partidaUuid>` — roster vem da nuvem (`get-partida-avaliacao`). Webhook fica só em `config` (servidor envia ao Discord). Links legados `#a=<jsonB64>.…` ainda abrem.
+3. Quem abre o link (sem login): escolhe “quem sou eu”, nota 1–5 nos outros, registra **só os próprios** gols/assistências (e **defesas** se goleiro), **Enviar avaliação** → Edge Function `submit-avaliacao` grava como **pendente** + Discord (avaliador + gols/assistências, **sem notas**). Upsert por `(partida, avaliador)`: reenvio substitui e volta a pendente.
+4. Admin na partida: **Revisar avaliações** → aprovar ou rejeitar. Só **aprovadas** atualizam `nivelAvaliacao` (média) e G/A/D da partida (média dos relatos). O **Nv** manual **não** é sobrescrito.
+5. **Todos os participantes da partida** entram na avaliação. Digitar um nome que já existe no cadastro reusa o id/origem (não cria convidado fantasma).
+6. Badges no cadastro: **Nv** (manual, cicla) + **Av** (avaliações aprovadas; `title` com média exata)
+7. Stats G/A/D na tela da partida são **somente leitura** (vêm das avaliações aprovadas).
 
 ## Partidas (fluxo)
 
 1. Lista (mais recente primeiro)
 2. Nova partida: data BR + horas 24h + checkboxes (admin, mensalistas, avulsos) + convidados
-3. Detalhe: stats `+/-`, adicionar/remover jogadores, montar times, WhatsApp
+3. Detalhe: stats G/A/D somente leitura (avaliações aprovadas), adicionar/remover jogadores, montar times, WhatsApp, revisar/aprovar avaliações
 
 Helpers importantes: `isoToBR`, `brToISO`, `normalizeHora`, `dataPadraoPartida`, `proximaQuartaApos`, `isQuarta`, `snapshotParticipante`, `clampNivel`.
 
@@ -211,7 +214,7 @@ Ao criar/adicionar jogador, **copiar** `nivel` e `goleiro` do cadastro para o pa
 - Badges artilheiro / garçom / muralha da semana
 - Melhor do mês no Resumo
 - Draft manual / capitães
-- Sync de avaliações em nuvem (sem colar JSON do Discord)
+- Sync de avaliações em nuvem (sem colar JSON do Discord) — **feito** (v2 + aprovação)
 - Meta coletiva do mês
 
 ## O que NÃO fazer
@@ -222,7 +225,8 @@ Ao criar/adicionar jogador, **copiar** `nivel` e `goleiro` do cadastro para o pa
 - Não editar arquivos de CI GitLab (se existirem) — gerenciados pela equipe de core
 - Não commitar sem o usuário pedir
 - Não quebrar a **v1** na raiz ao trabalhar na **v2**
-- Não expor `service_role` no front; avaliações públicas só via Edge Function
+- Não expor `service_role` no front; avaliações públicas só via Edge Function (`submit-avaliacao` / `get-partida-avaliacao`)
+- Não computar Av/G/A/D no submit — só após `approve-avaliacao` (ou equivalente no client filtrando `aprovadaEm`)
 
 ## Como testar rápido
 
@@ -230,15 +234,15 @@ Ao criar/adicionar jogador, **copiar** `nivel` e `goleiro` do cadastro para o pa
 1. Abrir `index.html` ou servir a pasta (`npx serve .`)
 2. Em Ajustes: definir nome do admin · webhook Discord · em Mensalistas: ajustar Nv e GOL
 3. Partidas → Nova partida → Criar → Montar times → Ranking
-4. Link de avaliação → `#a=…` → importar JSON
+4. Link de avaliação → `#a=…` → (fluxo legado) Discord/JSON → importar JSON na partida ou Ajustes
 
 ### v2
 1. Criar usuário no Supabase Auth e setar `app_metadata.role = "admin"`.
-2. Aplicar migrations (incl. `202603250004_multi_fut.sql`) e redeploy das Edge Functions.
+2. Aplicar migrations (incl. multi-fut + `avaliacao_aprovacao`) e redeploy das Edge Functions (`submit-avaliacao`, `get-partida-avaliacao`, `approve-avaliacao`, backups).
 3. Servir a raiz (`npx serve . -l 4173`) e abrir `http://localhost:4173/v2/` (produção: `/fut-manager/v2/`).
 4. Login → criar ou escolher fut → usar o app. Se Ajustes vier vazio, conferir grants de `authenticated` e o console (hydrate falhou).
 5. Importar backup da v1 em **Ajustes → Importar Backup** (colar JSON) **no fut ativo**. Partidas/avaliações não vêm.
-6. Avaliações: link `#a=` envia para `submit-avaliacao` (+ Discord se houver webhook).
+6. Avaliações: **Ajustes** → webhook Discord → partida → link `#a=<uuid>` → jogador envia → **Revisar avaliações** → aprovar.
 7. Vários peladas: **Ajustes → Novo fut** ou seletor no header.
 8. Logout: **Ajustes → Sair da conta**.
 9. Apagar pelada: **Ajustes → Apagar fut atual** (remove o fut selecionado no topo; irreversível).

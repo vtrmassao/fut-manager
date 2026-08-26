@@ -11,7 +11,7 @@ Antes de mudar código, leia [`CONTEXTO.md`](CONTEXTO.md).
 
 - Duas apps no site: **v1** na raiz (`index.html` + `sw.js` + `manifest.json`, `localStorage` `futmgr`) e **v2** em `/v2/` (módulos + Supabase).
 - Não quebrar a v1 ao trabalhar na v2.
-- Domínios: **caixa** (mensalistas/avulsos) + **partidas/stats/ranking/times** + **avaliações** (`#a=` + Discord webhook; notas + gols/assistências).
+- Domínios: **caixa** (mensalistas/avulsos) + **partidas/stats/ranking/times** + **avaliações** (`#a=` + Discord; aprovação admin antes de Av/G/A/D).
 - Pelada: quartas, **21:00–23:00** (24h). Datas na UI: **dd/mm/aaaa**.
 - **Admin v1** = id `900001`; **Admin v2** = `jogadores.tipo = 'admin'` por fut (UUID via `create_fut`); nome em perfil (Ajustes; sem default), joga sem pagar mensalidade.
 - **Multi-fut v2**: `futs.owner_id = auth.uid()`; hydrate/persist/backup escopados por `fut_id`; seletor no header; logout em **Ajustes → Sair da conta**.
@@ -19,6 +19,6 @@ Antes de mudar código, leia [`CONTEXTO.md`](CONTEXTO.md).
 - `iniciarNovoMes()` **não** apaga `partidas` nem `avaliacoes`.
 - Webhook Discord só em storage/config (Ajustes) — nunca hardcodar no repo.
 - Ao alterar UI/JS da v1: bump cache em `sw.js` da raiz. Na v2: bump `v2/sw.js`.
-- Schema: `supabase/migrations/` (inclui GRANT de tabela para `authenticated`; `anon` sem CRUD). Functions: `import-backup`, `export-backup`, `submit-avaliacao`.
+- Schema: `supabase/migrations/` (inclui GRANT de tabela para `authenticated`; `anon` sem CRUD). Functions: `import-backup`, `export-backup`, `submit-avaliacao`, `get-partida-avaliacao`, `approve-avaliacao`.
 - Não versionar `backup*.json` (PIX/webhook). Na v2, IDs em `onclick` passam por `jsArg()` (aspas HTML).
 - Responder em português. Não commitar sem pedido explícito.

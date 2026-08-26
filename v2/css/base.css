@@ -193,9 +193,11 @@ body {
       margin-top: 8px;
     }
 
-body.modo-avaliar .header-stripe,
-    body.modo-avaliar .header,
-    body.modo-avaliar .content {
+/* .modo-avaliar no <html> (script no head) ou no <body> — esconde chrome antes do fetch */
+.modo-avaliar .header-stripe,
+    .modo-avaliar .header,
+    .modo-avaliar .content,
+    .modo-avaliar #login-screen {
       display: none !important;
     }
 
@@ -207,6 +209,6 @@ body.modo-avaliar .header-stripe,
       margin: 0 auto;
     }
 
-body.modo-avaliar #view-avaliar {
+.modo-avaliar #view-avaliar {
       display: block;
     }

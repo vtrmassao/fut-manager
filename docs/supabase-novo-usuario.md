@@ -5,8 +5,10 @@ Guia para cadastrar um administrador que consegue entrar em `/v2/`, criar futs e
 ## Pré-requisitos
 
 - Projeto Supabase **fut-manager** (`lajdoswgtgcuazviewgb`, região `sa-east-1`).
-- Migrations aplicadas em [`supabase/migrations/`](../supabase/migrations/) (inclui `202603250004_multi_fut.sql`).
-- Edge Functions publicadas: `import-backup`, `export-backup`, `submit-avaliacao`.
+- Migrations aplicadas em [`supabase/migrations/`](../supabase/migrations/) (inclui `202603250004_multi_fut.sql` e `202608260001_avaliacao_aprovacao.sql`).
+- Edge Functions publicadas: `import-backup`, `export-backup`, `submit-avaliacao`, `get-partida-avaliacao`, `approve-avaliacao`.
+  - `submit-avaliacao` e `get-partida-avaliacao`: **sem** JWT obrigatório (`verify_jwt = false`).
+  - `approve-avaliacao`, backup: **com** JWT admin.
 
 Sem a role `admin` no JWT, o app recusa o login e exibe *"Usuário sem role admin"*.
 
@@ -92,8 +94,10 @@ Repita os passos 1 e 2 para cada organizador. Cada um terá futs próprios (`fut
 |------|--------|
 | **Ajustes → Admin do grupo** | Nome de quem organiza e joga sem mensalidade |
 | **Ajustes → Mês vigente / taxas** | Valores do caixa |
+| **Ajustes → Avaliações (Discord)** | Webhook do canal (mensagem legível ao enviar avaliação) |
 | **Ajustes → Importar Backup** | Trazer dados da v1 (opcional; só o fut ativo) |
 | **Ajustes → Novo fut** | Segunda pelada no mesmo login (opcional) |
+| **Partidas → Revisar avaliações** | Aprovar/rejeitar antes de computar Av e G/A/D |
 
 ---
 
@@ -114,5 +118,6 @@ Repita os passos 1 e 2 para cada organizador. Cada um terá futs próprios (`fut
 - Checagem de admin no banco: função `public.is_admin()` lê `(auth.jwt() -> 'app_metadata' ->> 'role') = 'admin'`.
 - Código de login/logout: [`v2/js/api/auth.js`](../v2/js/api/auth.js), [`v2/js/main.js`](../v2/js/main.js).
 - Criação de fut: RPC `create_fut(nome)` — ver migration [`202603250004_multi_fut.sql`](../supabase/migrations/202603250004_multi_fut.sql).
+- Aprovação de avaliações: migration [`202608260001_avaliacao_aprovacao.sql`](../supabase/migrations/202608260001_avaliacao_aprovacao.sql); functions `submit-avaliacao`, `get-partida-avaliacao`, `approve-avaliacao`.
 
 Contexto geral do projeto: [`CONTEXTO.md`](../CONTEXTO.md).

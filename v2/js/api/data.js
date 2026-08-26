@@ -182,6 +182,8 @@ export async function persistState(state) {
       data: a.data || null,
       avaliador_id: a.avaliadorId,
       importado_em: a.importadoEm || new Date().toISOString(),
+      aprovada_em: a.aprovadaEm || null,
+      rejeitada_em: a.rejeitadaEm || null,
     })).error);
     const notaRows = Object.entries(a.notas || {}).map(([avaliado_id, nota]) => ({
       avaliacao_id: a.id,

@@ -15,6 +15,12 @@
     rel="stylesheet">
   <link rel="stylesheet" href="./css/base.css">
   <link rel="stylesheet" href="./css/components.css">
+  <script>
+    /* Evita flash do chrome principal em links #a= (antes dos módulos ES). */
+    if ((location.hash || '').indexOf('#a=') === 0) {
+      document.documentElement.classList.add('modo-avaliar');
+    }
+  </script>
 </head>
 
 <body>
@@ -28,7 +34,10 @@
     </div>
   </div>
 
-  <div id="view-avaliar"></div>
+  <div id="view-avaliar">
+    <div class="avaliar-title">AVALIAR PARTIDA</div>
+    <div class="avaliar-sub">Carregando partida…</div>
+  </div>
 
   <div class="header-stripe"></div>
   <div class="header">
@@ -331,19 +340,11 @@
         <div class="section-title">Avaliações (Discord)</div>
         <div style="display:flex; flex-direction:column; gap:10px; font-family:'DM Sans',sans-serif; font-size:0.9rem;">
           <p style="font-size:0.8rem; color:#888; line-height:1.4; margin:0;">
-            Cole a URL do webhook do Discord. Ela fica só neste aparelho e entra ofuscada no link de avaliação da partida.
+            Cole a URL do webhook do Discord. Avaliações vão para o banco e o Discord (mensagem legível). Você aprova na tela da partida antes de computar Av e G/A/D.
           </p>
           <input type="password" class="fut-input" id="cfg-discord-webhook" placeholder="https://discord.com/api/webhooks/…"
             autocomplete="off" onchange="updateDiscordWebhook()">
           <button type="button" class="btn-secondary" onclick="testarDiscordWebhook()">Testar webhook</button>
-          <div class="section-title" style="margin-top:8px;margin-bottom:0">Importar avaliações</div>
-          <p style="font-size:0.75rem; color:#666; line-height:1.4; margin:0;">
-            Cole o JSON (ou vários) que chegou no Discord. Atualiza o nível Av (média das notas) e, se vier no JSON, gols/assistências da partida (média dos relatos). O Nv manual não muda.
-          </p>
-          <textarea class="fut-input" id="inp-import-avaliacoes" rows="5"
-            placeholder='{"v":1,"tipo":"avaliacao-partida",...}'
-            style="font-family:monospace;font-size:0.75rem;resize:vertical;min-height:90px"></textarea>
-          <button type="button" class="btn-add" style="background:#1565c0;color:#fff" onclick="importarAvaliacoesDaUi()">Importar JSON</button>
           <button type="button" class="btn-add" style="background:#ff5252;color:#fff" onclick="resetarAvaliacoes()">Resetar avaliações</button>
         </div>
       </div>

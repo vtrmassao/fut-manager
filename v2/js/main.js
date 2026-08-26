@@ -23,6 +23,9 @@ async function bootWithFut(session) {
 async function start() {
   const isAvaliar = location.hash.startsWith('#a=');
   if (isAvaliar) {
+    // Síncrono: esconde chrome antes do await do fetch da partida
+    document.documentElement.classList.add('modo-avaliar');
+    document.body.classList.add('modo-avaliar');
     showLogin(false);
     exposeGlobals();
     await bootApp({ skipAuth: true });

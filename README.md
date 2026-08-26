@@ -32,8 +32,14 @@ O **Fut Manager** é um gerenciador de futsal simples, rápido e moderno projeta
   - Data no formato **dd/mm/aaaa**; horário **24h** (padrão 21:00–23:00, quartas).
   - **Admin** (nome em Ajustes) sempre disponível e pré-selecionado — joga sem mensalidade.
   - Participantes: mensalistas, avulsos, convidados; dá para adicionar jogadores também na tela de stats.
-  - Gols, assistências e defesas por jogador.
+  - Gols, assistências e defesas por jogador (**v2:** só leitura — vêm das avaliações aprovadas).
   - Montagem automática de times (snake draft) + embaralhar.
+
+- **⭐ Avaliações pós-partida (v2)**:
+  - Link curto `#a=<partidaUuid>` (sem login).
+  - Jogador envia notas + G/A/D próprios → grava no banco (pendente) + Discord legível.
+  - Admin **aprova ou rejeita** na tela da partida; só então atualizam Av (média) e estatísticas.
+  - Upsert: reenviar substitui e volta a exigir aprovação.
 
 - **🏆 Ranking**:
   - Filtros **Mensal**, **Partida** e **Total**.
@@ -67,8 +73,8 @@ fut-manager/
 │   │   └── js/api/futs.js   # listar/criar/trocar fut
 │   │   └── js/api/auth.js   # login/logout admin
 ├── supabase/
-│   ├── migrations/         # Schema + grants (incl. multi-fut)
-│   └── functions/          # import-backup, export-backup, submit-avaliacao
+│   ├── migrations/         # Schema + grants (incl. multi-fut, aprovação de avaliações)
+│   └── functions/          # import/export-backup, submit/get-partida/approve-avaliacao
 ├── README.md
 ├── CONTEXTO.md             # Contexto técnico (leia em novos chats)
 ├── docs/
@@ -78,6 +84,14 @@ fut-manager/
 └── .gitignore              # ignora dev-seed.local.js e backup*.json
 ```
 
+### Edge Functions (v2)
+
+| Function | Auth | Papel |
+|----------|------|--------|
+| `submit-avaliacao` | anon | Grava avaliação **pendente** + Discord legível |
+| `get-partida-avaliacao` | anon | Roster da partida para o link `#a=` |
+| `approve-avaliacao` | JWT admin | Aprovar/rejeitar → recalc Av e G/A/D |
+| `import-backup` / `export-backup` | JWT admin | Backup financeiro do fut |
 ---
 
 ## 🎯 Como executar localmente
@@ -125,8 +139,15 @@ Se você organiza mais de um futsal, crie um fut por pelada e importe o backup d
 
 Na v1: **Ajustes → Exportar Backup**. Na v2 (já logado, com o **fut correto** selecionado): **Ajustes → Importar Backup** e cole o JSON. O import grava financeiro + elenco **daquele fut**; **partidas e avaliações não vêm**. Repita para cada fut, se tiver mais de um. Não commite o JSON (`backup*.json` está no `.gitignore` — contém PIX e webhook).
 
-Detalhes de schema, RLS e Edge Functions: [`CONTEXTO.md`](CONTEXTO.md).
+Detalhes de schema, RLS, avaliações e Edge Functions: [`CONTEXTO.md`](CONTEXTO.md).
 
+### Avaliações na v2 (fluxo rápido)
+
+1. Em **Ajustes**: cole o webhook Discord (opcional, mas recomendado).
+2. Na partida: **Link de avaliação** → mande no grupo (`#a=<uuid>`).
+3. Cada jogador abre o link, avalia e toca **Enviar avaliação**.
+4. De volta na partida (logado): **Revisar avaliações** → **Aprovar** / **Rejeitar**.
+5. Só após aprovar o Av e os G/A/D entram no ranking.
 ---
 
 ## 📱 Como instalar no celular

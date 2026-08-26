@@ -181,6 +181,8 @@ export async function hydrateState() {
       avaliadorId: av.avaliador_id,
       notas,
       importadoEm: av.importado_em || '',
+      aprovadaEm: av.aprovada_em || null,
+      rejeitadaEm: av.rejeitada_em || null,
     };
     if (Object.keys(stats).length) out.stats = stats;
     return out;
