@@ -71,7 +71,7 @@ export async function persistState(state) {
     pago: false,
     status: null,
     nivel: state.adminPerfil.nivel,
-    nivel_avaliacao: state.adminPerfil.nivelAvaliacao,
+    nivel_avaliacao: state.adminPerfil.nivelAvaliacao ?? null,
     goleiro: state.adminPerfil.goleiro,
   }, ...state.mensalistas.map(j => ({
     id: j.id,
@@ -81,7 +81,7 @@ export async function persistState(state) {
     pago: !!j.pago,
     status: null,
     nivel: j.nivel,
-    nivel_avaliacao: j.nivelAvaliacao,
+    nivel_avaliacao: j.nivelAvaliacao ?? null,
     goleiro: !!j.goleiro,
   })), ...state.avulsos.map(j => ({
     id: j.id,
@@ -91,7 +91,7 @@ export async function persistState(state) {
     pago: false,
     status: j.status,
     nivel: j.nivel,
-    nivel_avaliacao: j.nivelAvaliacao,
+    nivel_avaliacao: j.nivelAvaliacao ?? null,
     goleiro: !!j.goleiro,
   }))];
   const keepIds = jogadores.map(j => j.id);

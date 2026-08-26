@@ -286,12 +286,14 @@ const DIAS_SEMANA_CURTO = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', '
         });
       });
       function nivelAvDe(id) {
+        if (id == null || id === '') return null;
         const s = sums[String(id)];
         if (!s || !s.count) return null;
         return Math.min(5, Math.max(1, Math.round(s.sum / s.count)));
       }
       if (!parsed.adminPerfil) parsed.adminPerfil = { nome: '', nivel: 3, nivelAvaliacao: null, goleiro: false };
-      parsed.adminPerfil.nivelAvaliacao = nivelAvDe(getAdmin().id);
+      const adminId = parsed.meta?.adminPlayerId;
+      parsed.adminPerfil.nivelAvaliacao = adminId ? nivelAvDe(adminId) : null;
       parsed.mensalistas = (parsed.mensalistas || []).map(m => ({
         ...m,
         nivelAvaliacao: nivelAvDe(m.id)
@@ -300,6 +302,18 @@ const DIAS_SEMANA_CURTO = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', '
         ...a,
         nivelAvaliacao: nivelAvDe(a.id)
       }));
+      (parsed.partidas || []).forEach(p => {
+        (p.participantes || []).forEach(part => {
+          part.nivelAvaliacao = nivelAvDe(part.playerId);
+        });
+      });
+    }
+
+    function temNivelAvCadastrado() {
+      if (!isNivelDesconhecido(getAdminPerfil().nivelAvaliacao)) return true;
+      if ((state.mensalistas || []).some(m => !isNivelDesconhecido(m.nivelAvaliacao))) return true;
+      if ((state.avulsos || []).some(a => !isNivelDesconhecido(a.nivelAvaliacao))) return true;
+      return false;
     }
 
     function normalizePacoteAvaliacaoMigracao(av) {
@@ -418,7 +432,9 @@ const DIAS_SEMANA_CURTO = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', '
     let persistBusy = false;
 
     async function load() {
-      return await hydrateState();
+      const loaded = await hydrateState();
+      aplicarNivelAvaliacaoNoParsed(loaded);
+      return loaded;
     }
 
     function flashSaved() {
@@ -1025,19 +1041,20 @@ const DIAS_SEMANA_CURTO = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', '
 
     function resetarAvaliacoes() {
       const n = (state.avaliacoes || []).length;
-      if (!n) {
-        alert('Não há avaliações para resetar.');
+      const temAv = temNivelAvCadastrado();
+      if (!n && !temAv) {
+        alert('Não há avaliações nem nível Av para resetar.');
         return;
       }
       if (!confirm(
-        `Apagar todas as ${n} avaliação(ões) importadas?\n\n` +
-        'O nível Av dos jogadores volta para ?. Gols e assistências das partidas não são alterados.'
+        `Apagar ${n ? `todas as ${n} avaliação(ões) importadas` : 'os níveis Av salvos'}?\n\n` +
+        'O nível Av de todos os jogadores volta para ?. Gols e assistências das partidas não são alterados.'
       )) return;
       state.avaliacoes = [];
       recalcularNiveis();
       save();
       render();
-      alert('Avaliações resetadas.');
+      alert('Avaliações resetadas. Nível Av voltou para ?.');
     }
 
     function resetarAvaliacoesPartida(partidaId) {
@@ -2068,14 +2085,14 @@ const DIAS_SEMANA_CURTO = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', '
           <button class="btn-back" onclick="voltarListaPartidas()">← Voltar</button>
           <div class="card">
             <div class="section-title">NOVA PARTIDA</div>
-            <div style="display:flex;flex-direction:column;gap:10px;font-family:'DM Sans',sans-serif;font-size:0.9rem">
+            <div style="display:flex;flex-direction:column;gap:10px;font-family:'DM Sans',sans-serif;font-size:0.9rem;min-width:0;max-width:100%" class="cfg-form">
               <div>
                 <div class="card-label">Data (dd/mm/aaaa)</div>
                 <input type="text" class="fut-input" id="inp-partida-data" inputmode="numeric" placeholder="dd/mm/aaaa" value="${isoToBR(ui.draftData) || ''}" onchange="setDraftDataFromInput()" onblur="setDraftDataFromInput()">
                 ${warn}
                 <button type="button" class="btn-secondary" style="margin-top:8px;margin-bottom:0" onclick="usarProximaPelada()">Próxima ${labelDiaSemanaCurto(diaPelada)}</button>
               </div>
-              <div class="grid2" style="margin-bottom:0">
+              <div class="grid2">
                 <div>
                   <div class="card-label">Início (24h)</div>
                   <input type="text" class="fut-input" id="inp-partida-inicio" inputmode="numeric" placeholder="${getPeladaHoraInicio()}" value="${ui.draftHoraInicio}" maxlength="5">

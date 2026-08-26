@@ -241,6 +241,73 @@
       width: auto;
     }
 
+.grid2 .fut-input,
+.cfg-form .fut-input {
+      flex: none;
+      width: 100%;
+}
+
+.cfg-form {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.9rem;
+      min-width: 0;
+      max-width: 100%;
+}
+
+.cfg-hint {
+      font-size: 0.8rem;
+      color: #888;
+      line-height: 1.4;
+      margin: 0;
+}
+
+.cfg-hint-sm {
+      font-size: 0.75rem;
+      color: #666;
+      line-height: 1.4;
+      margin: 0;
+}
+
+.cfg-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      min-width: 0;
+      max-width: 100%;
+}
+
+.cfg-row-label {
+      color: #aaa;
+      flex: 0 1 auto;
+      min-width: 0;
+}
+
+.cfg-row-field {
+      flex: 1 1 120px;
+      min-width: 0;
+      max-width: 100%;
+}
+
+.cfg-row-field .fut-input {
+      width: 100%;
+      max-width: 100%;
+      margin: 0;
+      padding: 8px 10px;
+}
+
+.cfg-row-field--date {
+      flex: 0 1 140px;
+}
+
+.cfg-form .grid2 {
+      margin-bottom: 0;
+}
+
 .fut-input:focus {
       border-color: #00e676;
     }

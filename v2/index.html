@@ -252,23 +252,25 @@
 
       <div class="card">
         <div class="section-title">Pelada</div>
-        <div style="display:flex; flex-direction:column; gap:12px; font-family:'DM Sans',sans-serif; font-size:0.9rem;">
-          <p style="font-size:0.8rem; color:#888; line-height:1.4; margin:0;">
+        <div class="cfg-form">
+          <p class="cfg-hint">
             Dia, horário e data de início usados como padrão ao criar uma nova partida.
           </p>
-          <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
-            <span style="color:#aaa; flex-shrink:0;">Dia da semana:</span>
-            <select class="fut-input" id="cfg-pelada-dia" style="max-width:180px; padding:8px 10px; margin:0;" onchange="updatePeladaConfig()">
-              <option value="0">Domingo</option>
-              <option value="1">Segunda-feira</option>
-              <option value="2">Terça-feira</option>
-              <option value="3">Quarta-feira</option>
-              <option value="4">Quinta-feira</option>
-              <option value="5">Sexta-feira</option>
-              <option value="6">Sábado</option>
-            </select>
+          <div class="cfg-row">
+            <span class="cfg-row-label">Dia da semana:</span>
+            <div class="cfg-row-field">
+              <select class="fut-input" id="cfg-pelada-dia" onchange="updatePeladaConfig()">
+                <option value="0">Domingo</option>
+                <option value="1">Segunda-feira</option>
+                <option value="2">Terça-feira</option>
+                <option value="3">Quarta-feira</option>
+                <option value="4">Quinta-feira</option>
+                <option value="5">Sexta-feira</option>
+                <option value="6">Sábado</option>
+              </select>
+            </div>
           </div>
-          <div class="grid2" style="margin-bottom:0">
+          <div class="grid2">
             <div>
               <div class="card-label">Início (24h)</div>
               <input type="text" class="fut-input" id="cfg-pelada-inicio" inputmode="numeric" placeholder="21:00" maxlength="5" onchange="updatePeladaConfig()">
@@ -278,12 +280,13 @@
               <input type="text" class="fut-input" id="cfg-pelada-fim" inputmode="numeric" placeholder="23:00" maxlength="5" onchange="updatePeladaConfig()">
             </div>
           </div>
-          <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
-            <span style="color:#aaa; flex-shrink:0;">Data de início:</span>
-            <input type="text" class="fut-input" id="cfg-pelada-data-inicio" inputmode="numeric" placeholder="dd/mm/aaaa"
-              style="max-width:140px; padding:8px 10px; margin:0;" onchange="updatePeladaConfig()">
+          <div class="cfg-row">
+            <span class="cfg-row-label">Data de início:</span>
+            <div class="cfg-row-field cfg-row-field--date">
+              <input type="text" class="fut-input" id="cfg-pelada-data-inicio" inputmode="numeric" placeholder="dd/mm/aaaa" onchange="updatePeladaConfig()">
+            </div>
           </div>
-          <p style="font-size:0.75rem; color:#666; line-height:1.4; margin:0;">
+          <p class="cfg-hint-sm">
             A data sugerida na nova partida não será anterior a esta data (opcional).
           </p>
         </div>
