@@ -997,7 +997,13 @@ const DIAS_SEMANA_CURTO = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', '
       if (!Array.isArray(state.avaliacoes)) state.avaliacoes = [];
       let novos = 0;
       let substituidos = 0;
+      let ignorados = 0;
+      const partidaIdsExistentes = new Set((state.partidas || []).map(p => String(p.id)));
       pacotes.forEach(pacote => {
+        if (!partidaIdsExistentes.has(String(pacote.partidaId))) {
+          ignorados++;
+          return;
+        }
         const idx = state.avaliacoes.findIndex(
           a => sameId(a.partidaId, pacote.partidaId) && sameId(a.avaliadorId, pacote.avaliadorId)
         );
@@ -1010,11 +1016,11 @@ const DIAS_SEMANA_CURTO = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', '
         }
       });
       recalcularNiveis();
-      const partidaIds = [...new Set(pacotes.map(p => p.partidaId))];
+      const partidaIds = [...new Set(pacotes.filter(p => partidaIdsExistentes.has(String(p.partidaId))).map(p => p.partidaId))];
       aplicarStatsAvaliacoesNasPartidas(partidaIds);
       save();
       render();
-      return { novos, substituidos };
+      return { novos, substituidos, ignorados };
     }
 
     function resetarAvaliacoes() {
@@ -1061,7 +1067,8 @@ const DIAS_SEMANA_CURTO = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', '
       }
       const r = aplicarPacotesAvaliacao(pacotes);
       if (el) el.value = '';
-      alert(`Importado: ${r.novos} novo(s), ${r.substituidos} substituído(s). Nível Av atualizado; gols/assistências da partida atualizados se vieram no JSON. O Nv manual não muda.`);
+      const ign = r.ignorados ? ` ${r.ignorados} ignorado(s) (partida inexistente).` : '';
+      alert(`Importado: ${r.novos} novo(s), ${r.substituidos} substituído(s).${ign} Nível Av atualizado; gols/assistências da partida atualizados se vieram no JSON. O Nv manual não muda.`);
     }
 
     function importarAvaliacoesPartida(partidaId) {
@@ -1076,7 +1083,8 @@ const DIAS_SEMANA_CURTO = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', '
         return;
       }
       const r = aplicarPacotesAvaliacao(pacotes);
-      alert(`Importado: ${r.novos} novo(s), ${r.substituidos} substituído(s).`);
+      const ign = r.ignorados ? ` ${r.ignorados} ignorado(s) (partida inexistente).` : '';
+      alert(`Importado: ${r.novos} novo(s), ${r.substituidos} substituído(s).${ign}`);
     }
 
     function updateDiscordWebhook() {
@@ -1699,6 +1707,8 @@ const DIAS_SEMANA_CURTO = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', '
     function removePartida(id) {
       if (!confirm('Remover esta partida e todas as estatísticas dela?')) return;
       state.partidas = state.partidas.filter(p => p.id !== id);
+      state.avaliacoes = (state.avaliacoes || []).filter(a => !sameId(a.partidaId, id));
+      recalcularNiveis();
       if (ui.partidaId === id) { ui.partidaView = 'lista'; ui.partidaId = null; }
       save();
       render();
@@ -2039,15 +2049,15 @@ const DIAS_SEMANA_CURTO = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', '
         const warn = ui.draftData && !isDiaPelada(ui.draftData, diaPelada)
           ? `<div class="hint-warn">⚠ Esta data não é ${labelDiaSemana(diaPelada).toLowerCase()}</div>` : '';
         const adminAp = getAdminPerfil();
-        const adminHtml = `<label class="chk-row"><input type="checkbox" ${ui.draftSelecionados['admin:' + getAdmin().id] ? 'checked' : ''} onchange="toggleDraftPlayer('admin:${getAdmin().id}')"><span>${adminNomeLabel()}${golTag(adminAp.goleiro)}</span><span style="color:#00bcd4;font-size:0.7rem;margin-left:auto">admin · Nv ${formatNivel(adminAp.nivel)} · Av ${formatNivel(adminAp.nivelAvaliacao)}</span></label>`;
+        const adminHtml = `<label class="chk-row"><input type="checkbox" ${ui.draftSelecionados['admin:' + getAdmin().id] ? 'checked' : ''} onchange="toggleDraftPlayer('admin:${getAdmin().id}')"><span class="chk-row-nome">${adminNomeLabel()}${golTag(adminAp.goleiro)}</span><span class="chk-row-meta chk-row-meta--admin">admin · Nv ${formatNivel(adminAp.nivel)} · Av ${formatNivel(adminAp.nivelAvaliacao)}</span></label>`;
         const mensHtml = state.mensalistas.length
           ? state.mensalistas.map(m =>
-            `<label class="chk-row"><input type="checkbox" ${ui.draftSelecionados['m:' + m.id] ? 'checked' : ''} onchange="toggleDraftPlayer('m:${m.id}')"><span>${m.nome}${golTag(m.goleiro)}</span><span style="color:#555;font-size:0.7rem;margin-left:auto">mensalista · Nv ${formatNivel(m.nivel)} · Av ${formatNivel(m.nivelAvaliacao)}</span></label>`
+            `<label class="chk-row"><input type="checkbox" ${ui.draftSelecionados['m:' + m.id] ? 'checked' : ''} onchange="toggleDraftPlayer('m:${m.id}')"><span class="chk-row-nome">${m.nome}${golTag(m.goleiro)}</span><span class="chk-row-meta">mens. · Nv ${formatNivel(m.nivel)} · Av ${formatNivel(m.nivelAvaliacao)}</span></label>`
           ).join('')
           : '<p style="font-family:DM Sans,sans-serif;color:#555;font-size:0.85rem">Nenhum mensalista cadastrado</p>';
         const avHtml = state.avulsos.length
           ? state.avulsos.map(a =>
-            `<label class="chk-row"><input type="checkbox" ${ui.draftSelecionados['a:' + a.id] ? 'checked' : ''} onchange="toggleDraftPlayer('a:${a.id}')"><span>${a.nome}${golTag(a.goleiro)}</span><span style="color:#555;font-size:0.7rem;margin-left:auto">avulso · Nv ${formatNivel(a.nivel)} · Av ${formatNivel(a.nivelAvaliacao)}</span></label>`
+            `<label class="chk-row"><input type="checkbox" ${ui.draftSelecionados['a:' + a.id] ? 'checked' : ''} onchange="toggleDraftPlayer('a:${a.id}')"><span class="chk-row-nome">${a.nome}${golTag(a.goleiro)}</span><span class="chk-row-meta">avulso · Nv ${formatNivel(a.nivel)} · Av ${formatNivel(a.nivelAvaliacao)}</span></label>`
           ).join('')
           : '';
         const convHtml = ui.draftConvidados.map(c =>

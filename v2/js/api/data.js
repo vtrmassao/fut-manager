@@ -167,7 +167,14 @@ export async function persistState(state) {
     if (teamRows.length) fail((await supabase.from('partida_times').insert(teamRows)).error);
   }
 
-  for (const a of state.avaliacoes) {
+  // Avaliações de partidas já removidas quebram a FK avaliacoes_partida_id_fkey
+  const partidaIds = new Set((state.partidas || []).map((p) => String(p.id)));
+  const avaliacoesValidas = (state.avaliacoes || []).filter((a) => partidaIds.has(String(a.partidaId)));
+  if (avaliacoesValidas.length !== (state.avaliacoes || []).length) {
+    state.avaliacoes = avaliacoesValidas;
+  }
+
+  for (const a of avaliacoesValidas) {
     fail((await supabase.from('avaliacoes').insert({
       id: a.id,
       fut_id: futId,

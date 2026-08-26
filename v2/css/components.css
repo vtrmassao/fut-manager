@@ -220,8 +220,11 @@
 
 .fut-input {
       flex: 1 1 140px;
+      display: block;
+      width: 100%;
       min-width: 0;
       max-width: 100%;
+      box-sizing: border-box;
       background: #0e0e18;
       border: 1px solid #2a2a40;
       border-radius: 8px;
@@ -232,6 +235,10 @@
       outline: none;
       -webkit-appearance: none;
       appearance: none;
+    }
+
+.input-row > .fut-input {
+      width: auto;
     }
 
 .fut-input:focus {
@@ -680,11 +687,13 @@
 .chk-row {
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 8px;
       padding: 10px 0;
       border-bottom: 1px solid #1a1a28;
       font-family: 'DM Sans', sans-serif;
       font-size: 0.88rem;
+      min-width: 0;
+      max-width: 100%;
     }
 
 .chk-row:last-child {
@@ -694,8 +703,34 @@
 .chk-row input {
       width: 18px;
       height: 18px;
+      flex-shrink: 0;
       accent-color: #00e676;
     }
+
+.chk-row-nome {
+      flex: 1 1 auto;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+.chk-row-meta {
+      flex: 0 1 auto;
+      min-width: 0;
+      max-width: 55%;
+      margin-left: auto;
+      font-size: 0.68rem;
+      color: #555;
+      text-align: right;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+}
+
+.chk-row-meta--admin {
+      color: #00bcd4;
+}
 
 .rank-pos {
       font-family: 'Bebas Neue', sans-serif;

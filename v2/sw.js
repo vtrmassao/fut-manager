@@ -1,4 +1,4 @@
-const CACHE = 'futmanager-v2-v11';
+const CACHE = 'futmanager-v2-v13';
 const ASSETS = [
   '/fut-manager/v2/',
   '/fut-manager/v2/index.html',

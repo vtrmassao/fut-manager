@@ -233,7 +233,11 @@ export async function replaceAvaliacoesFromState(avaliacoes) {
   }
   await supabase.from('avaliacoes').delete().eq('fut_id', futId);
 
+  const { data: partidasRows } = await supabase.from('partidas').select('id').eq('fut_id', futId);
+  const partidaIds = new Set((partidasRows || []).map((p) => String(p.id)));
+
   for (const av of avaliacoes || []) {
+    if (!partidaIds.has(String(av.partidaId))) continue;
     const { error: aErr } = await supabase.from('avaliacoes').insert({
       id: av.id,
       fut_id: futId,
