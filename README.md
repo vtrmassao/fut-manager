@@ -1,6 +1,9 @@
 # ⚽ Fut Manager
 
-O **Fut Manager** é um gerenciador de futsal simples, rápido e moderno projetado para rodar direto no celular ou navegador como um **Progressive Web App (PWA)**. Com ele, você consegue gerenciar o caixa do futebol de quarta-feira, registrar partidas e estatísticas, ver ranking e montar times — tudo salvo localmente e funcionando offline!
+O **Fut Manager** é um gerenciador de futsal simples, rápido e moderno projetado para rodar direto no celular ou navegador como um **Progressive Web App (PWA)**. Com ele, você consegue gerenciar o caixa do futebol de quarta-feira, registrar partidas e estatísticas, ver ranking e montar times.
+
+- **v1 (raiz):** dados no `localStorage` — versão estável.
+- **v2 (`/v2/`):** mesma experiência, persistência no **Supabase** (login admin). Um login pode gerenciar **vários futs** (peladas) isolados. Detalhes em [`CONTEXTO.md`](CONTEXTO.md).
 
 > **Para agentes / novos chats:** leia [`CONTEXTO.md`](CONTEXTO.md) — modelo de dados, abas, admin configurável, datas `dd/mm/aaaa`, horário 24h e convenções de código.
 
@@ -38,15 +41,17 @@ O **Fut Manager** é um gerenciador de futsal simples, rápido e moderno projeta
   - Cópia formatada para WhatsApp.
 
 - **📱 Suporte PWA**:
-  - Instalável na tela inicial, offline via Service Worker, dados no `localStorage`.
+  - Instalável na tela inicial, offline via Service Worker.
+  - v1: dados no `localStorage`. v2: dados no Supabase (PWA em `/v2/`, cache próprio).
 
 ---
 
 ## 🛠️ Tecnologias
 
-- HTML5 + CSS vanilla + JavaScript (ES6+)
+- HTML5 + CSS vanilla + JavaScript (ES6+); v2 em módulos (`type="module"`)
 - Fontes: Bebas Neue e DM Sans
-- PWA: `manifest.json` + `sw.js`
+- PWA: `manifest.json` + `sw.js` (v1 na raiz; v2 em `v2/`)
+- **v2:** Supabase (Postgres + Auth + Edge Functions)
 
 ---
 
@@ -54,34 +59,73 @@ O **Fut Manager** é um gerenciador de futsal simples, rápido e moderno projeta
 
 ```
 fut-manager/
-├── index.html          # App completo (HTML + CSS + JS)
-├── sw.js               # Service Worker
-├── manifest.json       # Manifest PWA
-├── README.md           # Este arquivo
-├── CONTEXTO.md         # Contexto técnico (leia em novos chats)
-├── .cursor/rules/      # Regras Cursor para o agente
-├── icon-192.png
-└── icon-512.png
+├── index.html              # v1 (HTML + CSS + JS, localStorage)
+├── sw.js / manifest.json   # PWA v1
+├── v2/                     # v2 modular (Supabase)
+│   ├── index.html
+│   ├── css/  js/  sw.js  manifest.json
+│   │   └── js/api/futs.js   # listar/criar/trocar fut
+│   │   └── js/api/auth.js   # login/logout admin
+├── supabase/
+│   ├── migrations/         # Schema + grants (incl. multi-fut)
+│   └── functions/          # import-backup, export-backup, submit-avaliacao
+├── README.md
+├── CONTEXTO.md             # Contexto técnico (leia em novos chats)
+├── docs/
+│   └── supabase-novo-usuario.md  # Cadastrar admin no Supabase
+├── .cursor/rules/
+├── icon-192.png / icon-512.png
+└── .gitignore              # ignora dev-seed.local.js e backup*.json
 ```
 
 ---
 
-## 🎯 Como Executar Localmente
+## 🎯 Como executar localmente
 
-### 1. Abrindo no Navegador
-Abra `index.html` direto. Recursos de PWA pedem HTTPS ou localhost.
-
-### 2. Servidor Local (recomendado)
+PWA pede HTTPS ou localhost. Na raiz do projeto:
 
 ```bash
-npx serve .
+npx serve . -l 4173
 ```
 
-```bash
-python -m http.server 8000
+- **v1:** `http://localhost:4173/`
+- **v2:** `http://localhost:4173/v2/` (login admin)
+
+### Login da v2
+
+Guia completo para cadastrar um novo admin: [`docs/supabase-novo-usuario.md`](docs/supabase-novo-usuario.md).
+
+Resumo:
+
+1. No Dashboard do Supabase: **Authentication → Users → Add user** (e-mail + senha, **Auto Confirm User**).
+2. No SQL Editor:
+
+```sql
+update auth.users
+set raw_app_meta_data = coalesce(raw_app_meta_data, '{}'::jsonb) || '{"role":"admin"}'::jsonb
+where email = 'seu@email.com';
 ```
 
-Acesse `http://localhost:3000` (serve) ou `http://localhost:8000` (Python).
+3. Abrir `/v2/` e entrar. Depois do `update` da role, faça logout/login para o JWT trazer `role: admin` (ou use **Ajustes → Sair da conta**).
+4. No **primeiro acesso**, crie um fut (ex.: "Quarta-feira") no modal que aparece.
+
+### Vários futs na v2
+
+Cada **login admin** pode ter mais de um fut — cada um com caixa, elenco, partidas e ranking **independentes**. Outro admin não vê os seus futs.
+
+- **Seletor no topo** da tela: troca o fut ativo.
+- **Ajustes → Novo fut**: cadastra outra pelada.
+- **Ajustes → Apagar fut atual**: remove o fut selecionado (irreversível; exporte backup antes).
+- **Ajustes → Sair da conta**: encerra a sessão admin neste aparelho.
+- **Backup/import** vale só para o fut selecionado no momento.
+
+Se você organiza mais de um futsal, crie um fut por pelada e importe o backup da v1 em cada um.
+
+### Trazer dados da v1 para a v2
+
+Na v1: **Ajustes → Exportar Backup**. Na v2 (já logado, com o **fut correto** selecionado): **Ajustes → Importar Backup** e cole o JSON. O import grava financeiro + elenco **daquele fut**; **partidas e avaliações não vêm**. Repita para cada fut, se tiver mais de um. Não commite o JSON (`backup*.json` está no `.gitignore` — contém PIX e webhook).
+
+Detalhes de schema, RLS e Edge Functions: [`CONTEXTO.md`](CONTEXTO.md).
 
 ---
 

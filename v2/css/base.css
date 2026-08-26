@@ -1,0 +1,204 @@
+/* Fut Manager v2 — reset, layout, header, abas, content */
+
+* {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+html {
+      max-width: 100%;
+      overflow-x: hidden;
+    }
+
+body {
+      background: #0a0a0f;
+      color: #f0f0f0;
+      font-family: 'Bebas Neue', 'Arial Black', sans-serif;
+      min-height: 100vh;
+      max-width: 100%;
+      overflow-x: hidden;
+      overscroll-behavior: none;
+    }
+
+.header-stripe {
+      background: linear-gradient(135deg, #00c853 0%, #00897b 50%, #1565c0 100%);
+      height: 4px;
+    }
+
+.header {
+      background: #111118;
+      padding: env(safe-area-inset-top, 18px) 18px 0;
+      padding-top: max(env(safe-area-inset-top), 18px);
+    }
+
+.header-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+    }
+
+.header-title {
+      font-size: 2rem;
+      letter-spacing: 3px;
+      background: linear-gradient(90deg, #00e676, #00bcd4);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+.save-badge {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.65rem;
+      letter-spacing: 1px;
+      padding: 3px 8px;
+      border-radius: 10px;
+      margin-top: 6px;
+    }
+
+.save-saved {
+  color: #00e676;
+  background: #003d1a;
+}
+
+.save-saving {
+  color: #ffd740;
+  background: #3d2e00;
+}
+
+.save-error {
+  color: #ff5252;
+  background: #3d0000;
+}
+
+.header-sub {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.72rem;
+      color: #555;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      margin-top: 2px;
+      margin-bottom: 14px;
+    }
+
+.header-fut-row {
+      margin-top: 8px;
+      margin-bottom: 4px;
+    }
+
+.fut-selector {
+      width: 100%;
+      flex: none;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.85rem;
+      padding: 8px 10px;
+      background: #1a1a28;
+      border: 1px solid #2a2a3a;
+      border-radius: 8px;
+      color: #f0f0f0;
+    }
+
+.tabs {
+      display: flex;
+      gap: 0;
+      border-top: 1px solid #1a1a28;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+    }
+
+.tabs::-webkit-scrollbar {
+      display: none;
+    }
+
+.tab-btn {
+      flex: 1 0 auto;
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 0.72rem;
+      letter-spacing: 0.5px;
+      padding: 10px 8px;
+      background: transparent;
+      border: none;
+      border-bottom: 3px solid transparent;
+      color: #444;
+      cursor: pointer;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+
+.tab-btn.active {
+      color: #00e676;
+      border-bottom: 3px solid #00e676;
+    }
+
+.content {
+      padding: 16px;
+      padding-bottom: max(env(safe-area-inset-bottom), 20px);
+      max-width: 100%;
+      overflow-x: clip;
+      min-width: 0;
+    }
+
+.grid2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+.grid2 .card {
+      margin-bottom: 0;
+    }
+
+.section-title {
+      font-size: 1rem;
+      letter-spacing: 2px;
+      color: #666;
+      margin-bottom: 10px;
+    }
+
+.clickable {
+      cursor: pointer;
+    }
+
+.tab-content {
+      display: none;
+    }
+
+.tab-content.active {
+      display: block;
+    }
+
+.empty-state {
+      text-align: center;
+      padding: 32px;
+    }
+
+.empty-state .icon {
+      font-size: 2.5rem;
+    }
+
+.empty-state p {
+      font-family: 'DM Sans', sans-serif;
+      color: #444;
+      margin-top: 8px;
+    }
+
+body.modo-avaliar .header-stripe,
+    body.modo-avaliar .header,
+    body.modo-avaliar .content {
+      display: none !important;
+    }
+
+#view-avaliar {
+      display: none;
+      padding: 18px;
+      padding-bottom: max(24px, env(safe-area-inset-bottom));
+      max-width: 480px;
+      margin: 0 auto;
+    }
+
+body.modo-avaliar #view-avaliar {
+      display: block;
+    }
