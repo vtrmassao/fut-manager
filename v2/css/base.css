@@ -142,9 +142,17 @@ body {
 
 .grid2 {
       display: grid;
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
       gap: 10px;
       margin-bottom: 12px;
+      width: 100%;
+      min-width: 0;
+      max-width: 100%;
+    }
+
+.grid2 > * {
+      min-width: 0;
+      max-width: 100%;
     }
 
 .grid2 .card {
@@ -185,9 +193,11 @@ body {
       margin-top: 8px;
     }
 
-body.modo-avaliar .header-stripe,
-    body.modo-avaliar .header,
-    body.modo-avaliar .content {
+/* .modo-avaliar no <html> (script no head) ou no <body> — esconde chrome antes do fetch */
+.modo-avaliar .header-stripe,
+    .modo-avaliar .header,
+    .modo-avaliar .content,
+    .modo-avaliar #login-screen {
       display: none !important;
     }
 
@@ -199,6 +209,6 @@ body.modo-avaliar .header-stripe,
       margin: 0 auto;
     }
 
-body.modo-avaliar #view-avaliar {
+.modo-avaliar #view-avaliar {
       display: block;
     }

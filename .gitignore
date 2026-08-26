@@ -3,3 +3,6 @@ dev-seed.local.js
 
 # Backups exportados da app (contêm chave PIX e webhook do Discord)
 backup*.json
+
+# Cache local do Supabase CLI
+supabase/.temp/

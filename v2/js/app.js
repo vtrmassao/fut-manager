@@ -1,7 +1,7 @@
 import { hydrateState, obterMesAnoAtual } from './api/hydrate.js';
 import * as persist from './api/persist.js';
 import { persistState } from './api/data.js';
-import { exportBackupJson, importBackupJson, submitAvaliacao } from './api/backup.js';
+import { exportBackupJson, importBackupJson, submitAvaliacao, fetchPartidaAvaliacao, approveAvaliacoes } from './api/backup.js';
 import { logout } from './api/auth.js';
 import { activateFut, deleteFut, ensureActiveFut, listMyFuts, promptCreateFut, setActiveFutMeta, switchFut } from './api/futs.js';
 import { supabase } from './supabase.js';
@@ -273,10 +273,19 @@ const DIAS_SEMANA_CURTO = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', '
       return parsed;
     }
 
-    /** Atualiza só nivelAvaliacao a partir de avaliacoes (não mexe no nivel manual). */
+    /** Atualiza só nivelAvaliacao a partir de avaliacoes aprovadas (não mexe no nivel manual). */
+    function isAvaliacaoAprovada(av) {
+      return !!(av && av.aprovadaEm);
+    }
+
+    function isAvaliacaoPendente(av) {
+      return !!(av && !av.aprovadaEm && !av.rejeitadaEm);
+    }
+
     function aplicarNivelAvaliacaoNoParsed(parsed) {
       const sums = {};
       (parsed.avaliacoes || []).forEach(av => {
+        if (!isAvaliacaoAprovada(av)) return;
         Object.keys(av.notas || {}).forEach(k => {
           const n = +av.notas[k];
           if (isNaN(n)) return;
@@ -286,12 +295,14 @@ const DIAS_SEMANA_CURTO = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', '
         });
       });
       function nivelAvDe(id) {
+        if (id == null || id === '') return null;
         const s = sums[String(id)];
         if (!s || !s.count) return null;
         return Math.min(5, Math.max(1, Math.round(s.sum / s.count)));
       }
       if (!parsed.adminPerfil) parsed.adminPerfil = { nome: '', nivel: 3, nivelAvaliacao: null, goleiro: false };
-      parsed.adminPerfil.nivelAvaliacao = nivelAvDe(getAdmin().id);
+      const adminId = parsed.meta?.adminPlayerId;
+      parsed.adminPerfil.nivelAvaliacao = adminId ? nivelAvDe(adminId) : null;
       parsed.mensalistas = (parsed.mensalistas || []).map(m => ({
         ...m,
         nivelAvaliacao: nivelAvDe(m.id)
@@ -300,6 +311,18 @@ const DIAS_SEMANA_CURTO = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', '
         ...a,
         nivelAvaliacao: nivelAvDe(a.id)
       }));
+      (parsed.partidas || []).forEach(p => {
+        (p.participantes || []).forEach(part => {
+          part.nivelAvaliacao = nivelAvDe(part.playerId);
+        });
+      });
+    }
+
+    function temNivelAvCadastrado() {
+      if (!isNivelDesconhecido(getAdminPerfil().nivelAvaliacao)) return true;
+      if ((state.mensalistas || []).some(m => !isNivelDesconhecido(m.nivelAvaliacao))) return true;
+      if ((state.avulsos || []).some(a => !isNivelDesconhecido(a.nivelAvaliacao))) return true;
+      return false;
     }
 
     function normalizePacoteAvaliacaoMigracao(av) {
@@ -346,7 +369,9 @@ const DIAS_SEMANA_CURTO = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', '
         data: typeof av.data === 'string' ? av.data : '',
         avaliadorId,
         notas,
-        importadoEm: typeof av.importadoEm === 'string' ? av.importadoEm : ''
+        importadoEm: typeof av.importadoEm === 'string' ? av.importadoEm : '',
+        aprovadaEm: av.aprovadaEm || null,
+        rejeitadaEm: av.rejeitadaEm || null
       };
       if (Object.keys(stats).length) out.stats = stats;
       return out;
@@ -418,7 +443,9 @@ const DIAS_SEMANA_CURTO = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', '
     let persistBusy = false;
 
     async function load() {
-      return await hydrateState();
+      const loaded = await hydrateState();
+      aplicarNivelAvaliacaoNoParsed(loaded);
+      return loaded;
     }
 
     function flashSaved() {
@@ -871,19 +898,41 @@ const DIAS_SEMANA_CURTO = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', '
       };
     }
 
-    /** Link: #a=<jsonB64>.<webhookBinB64> — webhook fora do JSON para não double-encode. */
+    /** Base canônica do app (sempre com / no fim) — evita 404 no GitHub Pages em `/v2#a=…`. */
+    function linkAvaliacaoBase() {
+      const url = new URL(location.href);
+      let path = url.pathname || '/';
+      if (/\/index\.html$/i.test(path)) path = path.replace(/\/index\.html$/i, '/');
+      if (!path.endsWith('/')) path += '/';
+      return url.origin + path;
+    }
+
+    /** Link curto: #a=<partidaUuid> (roster vem da nuvem). */
     function linkAvaliacaoPartida(partida) {
-      const body = montarPayloadLinkAvaliacao(partida);
-      let link = location.href.split('#')[0] + '#a=' + base64UrlEncode(JSON.stringify(body));
-      const wPacked = packWebhookBinary(state.discordWebhookUrl || '');
-      if (wPacked) link += '.' + wPacked;
-      return link;
+      return linkAvaliacaoBase() + '#a=' + partida.id;
+    }
+
+    function payloadFromPartidaApi(data) {
+      const dataIso = data.data || '';
+      return {
+        v: 1,
+        p: String(data.partidaId),
+        d: isoToYymmdd(dataIso),
+        j: (data.participantes || []).map((p) => {
+          const id = String(p.playerId);
+          const nome = String(p.nome || '').trim();
+          if (!id || !nome) return null;
+          return p.goleiro ? [id, nome, 1] : [id, nome];
+        }).filter(Boolean),
+        w: ''
+      };
     }
 
     function statsNotasRecebidas(playerId) {
       let sum = 0;
       let count = 0;
       (state.avaliacoes || []).forEach(av => {
+        if (!isAvaliacaoAprovada(av)) return;
         const n = av.notas && (av.notas[playerId] ?? av.notas[String(playerId)]);
         if (n !== undefined && n !== null && !isNaN(+n)) {
           sum += +n;
@@ -902,56 +951,12 @@ const DIAS_SEMANA_CURTO = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', '
       const st = statsNotasRecebidas(playerId);
       const title = st
         ? `Av = average (média das avaliações): ${st.media.toFixed(1)} (${st.count} nota${st.count !== 1 ? 's' : ''})`
-        : 'Av = average — ainda sem avaliações importadas';
+        : 'Av = average — ainda sem avaliações aprovadas';
       return `<span class="badge badge-av" title="${title}">Av ${formatNivel(nivelAvaliacao)}</span>`;
     }
 
     function recalcularNiveis() {
       aplicarNivelAvaliacaoNoParsed(state);
-    }
-
-    function parseTextoAvaliacoes(texto) {
-      let raw = (texto || '').trim();
-      if (!raw) return [];
-      const fence = raw.match(/```(?:json)?\s*([\s\S]*?)```/i);
-      if (fence) raw = fence[1].trim();
-      const pacotes = [];
-      try {
-        const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed)) {
-          parsed.forEach(p => pacotes.push(p));
-        } else if (parsed && typeof parsed === 'object') {
-          pacotes.push(parsed);
-        }
-      } catch (e) {
-        const re = /\{[\s\S]*?"tipo"\s*:\s*"avaliacao-partida"[\s\S]*?\}/g;
-        const matches = raw.match(re) || [];
-        matches.forEach(chunk => {
-          try {
-            pacotes.push(JSON.parse(chunk));
-          } catch (err) { /* ignore */ }
-        });
-        if (!pacotes.length) {
-          const loose = raw.match(/\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}/g) || [];
-          loose.forEach(chunk => {
-            try {
-              const p = JSON.parse(chunk);
-              if (p && (p.tipo === 'avaliacao-partida' || p.notas)) pacotes.push(p);
-            } catch (err) { /* ignore */ }
-          });
-        }
-      }
-      return pacotes
-        .map(p => {
-          if (!p || typeof p !== 'object') return null;
-          if (p.tipo && p.tipo !== 'avaliacao-partida') return null;
-          return normalizePacoteAvaliacaoMigracao({
-            ...p,
-            id: crypto.randomUUID(),
-            importadoEm: new Date().toISOString()
-          });
-        })
-        .filter(Boolean);
     }
 
     function aplicarStatsAvaliacoesNasPartidas(partidaIds) {
@@ -960,6 +965,7 @@ const DIAS_SEMANA_CURTO = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', '
         : null;
       const byPartida = {};
       (state.avaliacoes || []).forEach(av => {
+        if (!isAvaliacaoAprovada(av)) return;
         if (filtro && !filtro.has(String(av.partidaId))) return;
         if (!av.stats || typeof av.stats !== 'object') return;
         const pid = String(av.partidaId);
@@ -978,105 +984,66 @@ const DIAS_SEMANA_CURTO = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', '
           }
         });
       });
-      Object.keys(byPartida).forEach(partidaId => {
+      const partidasAlvo = filtro
+        ? [...filtro]
+        : [...new Set((state.partidas || []).map(p => String(p.id)))];
+      partidasAlvo.forEach(partidaId => {
         const partida = findPartida(partidaId);
         if (!partida) return;
-        Object.keys(byPartida[partidaId]).forEach(playerKey => {
-          const part = (partida.participantes || []).find(p => String(p.playerId) === String(playerKey));
-          if (!part) return;
-          const bucket = byPartida[partidaId][playerKey];
+        const bucketMap = byPartida[partidaId] || {};
+        (partida.participantes || []).forEach(part => {
+          const playerKey = String(part.playerId);
+          const bucket = bucketMap[playerKey];
+          if (!bucket) {
+            part.gols = 0;
+            part.assistencias = 0;
+            part.defesas = 0;
+            return;
+          }
           const avg = arr => Math.round(arr.reduce((sum, x) => sum + x, 0) / arr.length);
           part.gols = avg(bucket.gols);
           part.assistencias = avg(bucket.assistencias);
-          if (bucket.defesas.length) part.defesas = avg(bucket.defesas);
+          part.defesas = bucket.defesas.length ? avg(bucket.defesas) : 0;
         });
       });
     }
 
-    function aplicarPacotesAvaliacao(pacotes) {
-      if (!Array.isArray(state.avaliacoes)) state.avaliacoes = [];
-      let novos = 0;
-      let substituidos = 0;
-      pacotes.forEach(pacote => {
-        const idx = state.avaliacoes.findIndex(
-          a => sameId(a.partidaId, pacote.partidaId) && sameId(a.avaliadorId, pacote.avaliadorId)
-        );
-        if (idx >= 0) {
-          state.avaliacoes[idx] = { ...pacote, id: state.avaliacoes[idx].id };
-          substituidos++;
-        } else {
-          state.avaliacoes.push(pacote);
-          novos++;
-        }
-      });
-      recalcularNiveis();
-      const partidaIds = [...new Set(pacotes.map(p => p.partidaId))];
-      aplicarStatsAvaliacoesNasPartidas(partidaIds);
-      save();
-      render();
-      return { novos, substituidos };
-    }
-
     function resetarAvaliacoes() {
       const n = (state.avaliacoes || []).length;
-      if (!n) {
-        alert('Não há avaliações para resetar.');
+      const temAv = temNivelAvCadastrado();
+      if (!n && !temAv) {
+        alert('Não há avaliações nem nível Av para resetar.');
         return;
       }
       if (!confirm(
-        `Apagar todas as ${n} avaliação(ões) importadas?\n\n` +
-        'O nível Av dos jogadores volta para ?. Gols e assistências das partidas não são alterados.'
+        `Apagar ${n ? `todas as ${n} avaliação(ões)` : 'os níveis Av salvos'}?\n\n` +
+        'O nível Av de todos os jogadores volta para ?. Gols e assistências das partidas voltam a 0.'
       )) return;
+      const partidaIds = (state.partidas || []).map(p => p.id);
       state.avaliacoes = [];
+      aplicarStatsAvaliacoesNasPartidas(partidaIds);
       recalcularNiveis();
       save();
       render();
-      alert('Avaliações resetadas.');
+      alert('Avaliações resetadas. Nível Av voltou para ?.');
     }
 
     function resetarAvaliacoesPartida(partidaId) {
       const daPartida = (state.avaliacoes || []).filter(a => a.partidaId == partidaId);
       if (!daPartida.length) {
-        alert('Nenhuma avaliação importada para esta partida.');
+        alert('Nenhuma avaliação para esta partida.');
         return;
       }
       if (!confirm(
         `Apagar ${daPartida.length} avaliação(ões) desta partida?\n\n` +
-        'O nível Av é recalculado com o que sobrar. Gols/assistências da partida não são alterados.'
+        'O nível Av é recalculado com o que sobrar. Gols/assistências desta partida voltam a 0.'
       )) return;
       state.avaliacoes = (state.avaliacoes || []).filter(a => a.partidaId != partidaId);
+      aplicarStatsAvaliacoesNasPartidas([partidaId]);
       recalcularNiveis();
       save();
       render();
       alert('Avaliações desta partida removidas.');
-    }
-
-    function importarAvaliacoesDaUi() {
-      const el = document.getElementById('inp-import-avaliacoes');
-      const texto = el ? el.value : '';
-      const pacotes = parseTextoAvaliacoes(texto);
-      if (!pacotes.length) {
-        alert('Nenhuma avaliação válida encontrada. Cole o JSON do Discord.');
-        return;
-      }
-      const r = aplicarPacotesAvaliacao(pacotes);
-      if (el) el.value = '';
-      alert(`Importado: ${r.novos} novo(s), ${r.substituidos} substituído(s). Nível Av atualizado; gols/assistências da partida atualizados se vieram no JSON. O Nv manual não muda.`);
-    }
-
-    function importarAvaliacoesPartida(partidaId) {
-      const texto = prompt('Cole o JSON da avaliação (ou vários) recebido no Discord:');
-      if (!texto) return;
-      let pacotes = parseTextoAvaliacoes(texto);
-      if (partidaId) {
-        pacotes = pacotes.filter(p => p.partidaId == partidaId);
-      }
-      if (!pacotes.length) {
-        alert('Nenhuma avaliação válida' + (partidaId ? ' para esta partida' : '') + '.');
-        return;
-      }
-      const r = aplicarPacotesAvaliacao(pacotes);
-      alert(`Importado: ${r.novos} novo(s), ${r.substituidos} substituído(s).`);
     }
 
     function updateDiscordWebhook() {
@@ -1113,11 +1080,6 @@ const DIAS_SEMANA_CURTO = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', '
         alert('Nenhum jogador nesta partida para avaliar.');
         return;
       }
-      if (!parseWebhookToken(state.discordWebhookUrl || '')) {
-        if (!confirm('Webhook Discord não configurado em Ajustes. O link ainda funciona, mas o jogador só poderá copiar o JSON. Continuar?')) {
-          return;
-        }
-      }
       const link = linkAvaliacaoPartida(p);
       const txt = `⚽ Avaliem a partida de ${formatDataBR(p.data)}:\n${link}`;
       copyText(txt, 'Link de avaliação copiado! Mande no grupo.');
@@ -1142,27 +1104,82 @@ const DIAS_SEMANA_CURTO = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', '
         })
         .filter(Boolean);
       if (!payload.j.length) throw new Error('sem jogadores');
-      // Novo: webhook após o ponto. Legado: campo w dentro do JSON (id/token texto).
       payload.w = wPart || payload.w || '';
       return payload;
     }
 
-    function bootAvaliacaoFromHash() {
+    /** Extrai UUID do hash mesmo se vier lixo após (WhatsApp, tracking). */
+    function extractPartidaIdFromHashRaw(raw) {
+      const s = String(raw || '').trim();
+      const m = s.match(/^([0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})/i);
+      return m ? m[1] : '';
+    }
+
+    function showAvaliarError(msg) {
+      enterModoAvaliarChrome();
+      const root = document.getElementById('view-avaliar');
+      if (!root) return;
+      root.innerHTML = `
+        <div class="avaliar-title">AVALIAR PARTIDA</div>
+        <div class="avaliar-sub" style="color:#ff8a80">${msg || 'Não foi possível abrir este link.'}</div>
+        <p class="avaliar-sub">Peça um novo link de avaliação ao organizador.</p>
+      `;
+    }
+
+    function enterModoAvaliarChrome() {
+      document.documentElement.classList.add('modo-avaliar');
+      document.body.classList.add('modo-avaliar');
+    }
+
+    function exitModoAvaliarChrome() {
+      document.documentElement.classList.remove('modo-avaliar');
+      document.body.classList.remove('modo-avaliar');
+      const va = document.getElementById('view-avaliar');
+      if (va) va.innerHTML = '';
+    }
+
+    function showAvaliarLoading() {
+      enterModoAvaliarChrome();
+      const root = document.getElementById('view-avaliar');
+      if (!root || avaliarUi.payload) return;
+      root.innerHTML = `
+        <div class="avaliar-title">AVALIAR PARTIDA</div>
+        <div class="avaliar-sub">Carregando partida…</div>
+      `;
+    }
+
+    async function bootAvaliacaoFromHash() {
       const hash = location.hash || '';
       if (!hash.startsWith('#a=')) return false;
+      const raw = hash.slice(3);
+      showAvaliarLoading();
       try {
-        const payload = decodePayloadAvaliacao(hash.slice(3));
+        let payload;
+        const partidaId = extractPartidaIdFromHashRaw(raw);
+        if (partidaId) {
+          const data = await fetchPartidaAvaliacao(partidaId);
+          payload = payloadFromPartidaApi(data);
+          if (!payload.j.length) throw new Error('Partida sem jogadores');
+        } else {
+          // Links legados #a=<jsonB64>.<webhook>
+          payload = decodePayloadAvaliacao(raw);
+        }
         avaliarUi.payload = payload;
         avaliarUi.avaliadorId = null;
         avaliarUi.notas = {};
         avaliarUi.stats = {};
         avaliarUi.enviando = false;
-        document.body.classList.add('modo-avaliar');
+        enterModoAvaliarChrome();
         renderAvaliar();
         return true;
       } catch (e) {
-        alert('Link de avaliação inválido.');
-        history.replaceState(null, '', location.pathname + location.search);
+        console.warn(e);
+        avaliarUi.payload = null;
+        avaliarUi.avaliadorId = null;
+        avaliarUi.notas = {};
+        avaliarUi.stats = {};
+        const msg = (e && e.message) ? String(e.message) : 'Link de avaliação inválido ou partida não encontrada.';
+        showAvaliarError(msg);
         return false;
       }
     }
@@ -1254,63 +1271,24 @@ const DIAS_SEMANA_CURTO = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', '
         alert('Escolha quem é você e dê nota (1–5) a todos os outros. Seus gols/assistências (e defesas, se goleiro) são opcionais.');
         return;
       }
-      const json = JSON.stringify(pacote);
-      const wh = unpackWebhookBinary(avaliarUi.payload.w || '');
       if (avaliarUi.enviando) return;
       avaliarUi.enviando = true;
       renderAvaliar();
-      const dataLabel = pacote.data ? formatDataBR(pacote.data) : pacote.partidaId;
-      const content =
-        `⚽ **Avaliação** — ${dataLabel}\n` +
-        `Avaliador: **${nomeAvaliadorAtual()}**\n` +
-        '```json\n' + json + '\n```';
       try {
-        let cloudOk = false;
-        let discordOk = false;
-        try {
-          await submitAvaliacao({
-            partidaId: pacote.partidaId,
-            avaliadorId: pacote.avaliadorId,
-            notas: pacote.notas,
-            stats: pacote.stats,
-            data: pacote.data,
-          });
-          cloudOk = true;
-        } catch (error) {
-          console.warn('Não foi possível salvar a avaliação na nuvem.', error);
-        }
-        if (wh) {
-          try {
-            const res = await fetch(wh, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ content })
-            });
-            if (!res.ok) throw new Error('HTTP ' + res.status);
-            discordOk = true;
-          } catch (error) {
-            console.warn('Não foi possível enviar ao Discord.', error);
-          }
-        }
-        if (!cloudOk && !discordOk) throw new Error('Nenhum destino disponível');
-        alert(cloudOk
-          ? 'Avaliação salva! Pode fechar esta página.'
-          : 'Enviado para o Discord! Pode fechar esta página.');
+        await submitAvaliacao({
+          partidaId: pacote.partidaId,
+          avaliadorId: pacote.avaliadorId,
+          notas: pacote.notas,
+          stats: pacote.stats,
+          data: pacote.data,
+        });
+        alert('Avaliação enviada! Aguarde aprovação do organizador.');
       } catch (e) {
-        copyText(json, 'Falha no envio automático. JSON copiado — envie ao organizador.');
+        alert('Falha ao enviar avaliação: ' + (e.message || e));
       } finally {
         avaliarUi.enviando = false;
         renderAvaliar();
       }
-    }
-
-    function copiarJsonAvaliacaoFallback() {
-      const pacote = montarPacoteDoFormAvaliar();
-      if (!pacote) {
-        alert('Escolha quem é você e dê nota (1–5) a todos os outros. Seus gols/assistências (e defesas, se goleiro) são opcionais.');
-        return;
-      }
-      copyText(JSON.stringify(pacote, null, 2), 'JSON copiado!');
     }
 
     function htmlStatsPropriosAvaliar(playerId) {
@@ -1348,7 +1326,6 @@ const DIAS_SEMANA_CURTO = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', '
       const p = avaliarUi.payload;
       const dataIso = yymmddToIso(p.d);
       const dataLabel = dataIso ? formatDataBRLong(dataIso) : ('Partida #' + p.p);
-      const temWh = !!unpackWebhookBinary(p.w || '');
       const souGoleiro = avaliarUi.avaliadorId && isGoleiroNoPayloadAvaliar(avaliarUi.avaliadorId);
 
       const opcoes = p.j.map(([id, nome, gFlag]) =>
@@ -1395,13 +1372,12 @@ const DIAS_SEMANA_CURTO = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', '
           ${listaHtml}
         </div>
         <div class="avaliar-actions">
-          <button type="button" class="btn-add" style="width:100%;background:#5865F2;color:#fff"
+          <button type="button" class="btn-add" style="width:100%;background:#00e676;color:#000"
             onclick="enviarAvaliacaoDiscord()" ${avaliarUi.enviando ? 'disabled' : ''}>
-            ${avaliarUi.enviando ? 'Enviando…' : (temWh ? 'Enviar para o Discord' : 'Copiar JSON (sem webhook)')}
+            ${avaliarUi.enviando ? 'Enviando…' : 'Enviar avaliação'}
           </button>
-          <button type="button" class="btn-secondary" onclick="copiarJsonAvaliacaoFallback()">Copiar JSON</button>
         </div>
-        <p class="avaliar-sub" style="margin-top:12px">Não se avalia a si mesmo. Dê nota a todos os outros. Registre só os seus gols (G) e assistências (A)${souGoleiro ? ' e defesas (D)' : ''}.</p>
+        <p class="avaliar-sub" style="margin-top:12px">Não se avalia a si mesmo. Dê nota a todos os outros. Registre só os seus gols (G) e assistências (A)${souGoleiro ? ' e defesas (D)' : ''}. O organizador aprova antes de computar.</p>
       `;
     }
 
@@ -1699,6 +1675,8 @@ const DIAS_SEMANA_CURTO = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', '
     function removePartida(id) {
       if (!confirm('Remover esta partida e todas as estatísticas dela?')) return;
       state.partidas = state.partidas.filter(p => p.id !== id);
+      state.avaliacoes = (state.avaliacoes || []).filter(a => !sameId(a.partidaId, id));
+      recalcularNiveis();
       if (ui.partidaId === id) { ui.partidaView = 'lista'; ui.partidaId = null; }
       save();
       render();
@@ -1837,25 +1815,19 @@ const DIAS_SEMANA_CURTO = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', '
             <div class="stat-group">
               <label>G</label>
               <div class="stat-ctrl">
-                <button class="stat-btn" onclick="adjStat(${jsArg(partida.id)},${jsArg(part.playerId)},'gols',-1)" onmousedown="event.stopPropagation()">−</button>
                 <span class="stat-val">${part.gols || 0}</span>
-                <button class="stat-btn" onclick="adjStat(${jsArg(partida.id)},${jsArg(part.playerId)},'gols',1)" onmousedown="event.stopPropagation()">+</button>
               </div>
             </div>
             <div class="stat-group">
               <label>A</label>
               <div class="stat-ctrl">
-                <button class="stat-btn" onclick="adjStat(${jsArg(partida.id)},${jsArg(part.playerId)},'assistencias',-1)" onmousedown="event.stopPropagation()">−</button>
                 <span class="stat-val">${part.assistencias || 0}</span>
-                <button class="stat-btn" onclick="adjStat(${jsArg(partida.id)},${jsArg(part.playerId)},'assistencias',1)" onmousedown="event.stopPropagation()">+</button>
               </div>
             </div>
             <div class="stat-group">
               <label>D</label>
               <div class="stat-ctrl">
-                <button class="stat-btn" onclick="adjStat(${jsArg(partida.id)},${jsArg(part.playerId)},'defesas',-1)" onmousedown="event.stopPropagation()">−</button>
                 <span class="stat-val">${part.defesas || 0}</span>
-                <button class="stat-btn" onclick="adjStat(${jsArg(partida.id)},${jsArg(part.playerId)},'defesas',1)" onmousedown="event.stopPropagation()">+</button>
               </div>
             </div>
           </div>
@@ -2023,6 +1995,136 @@ const DIAS_SEMANA_CURTO = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', '
       render();
     }
 
+    function nomeParticipantePartida(partida, playerId) {
+      const part = (partida?.participantes || []).find(x => sameId(x.playerId, playerId));
+      return part?.nome || String(playerId).slice(0, 8);
+    }
+
+    function abrirRevisaoAvaliacoes(partidaId) {
+      const p = findPartida(partidaId);
+      if (!p) return;
+      const old = document.getElementById('avaliacao-revisao-overlay');
+      if (old) old.remove();
+      const avs = (state.avaliacoes || []).filter(a => sameId(a.partidaId, partidaId));
+      if (!avs.length) {
+        alert('Nenhuma avaliação nesta partida.');
+        return;
+      }
+      const pend = avs.filter(isAvaliacaoPendente);
+      const ov = document.createElement('div');
+      ov.id = 'avaliacao-revisao-overlay';
+      ov.className = 'confirm-overlay';
+      const box = document.createElement('div');
+      box.className = 'confirm-box';
+      box.style.maxWidth = '420px';
+      box.style.maxHeight = '80vh';
+      box.style.overflow = 'auto';
+      box.style.textAlign = 'left';
+      const title = document.createElement('p');
+      title.style.fontWeight = '700';
+      title.style.marginBottom = '12px';
+      title.textContent = `Avaliações — ${formatDataBR(p.data)}`;
+      box.appendChild(title);
+
+      const renderAvCard = (av) => {
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.style.marginBottom = '10px';
+        card.style.padding = '10px';
+        const status = isAvaliacaoAprovada(av)
+          ? 'Aprovada'
+          : (av.rejeitadaEm ? 'Rejeitada' : 'Pendente');
+        const statusColor = isAvaliacaoAprovada(av) ? '#00e676' : (av.rejeitadaEm ? '#ff8a80' : '#ff9800');
+        const avaliador = nomeParticipantePartida(p, av.avaliadorId);
+        let notasHtml = Object.entries(av.notas || {}).map(([id, nota]) =>
+          `<div style="font-size:0.85rem;color:#ccc">• ${nomeParticipantePartida(p, id)} — ${nota}</div>`
+        ).join('');
+        const st = av.stats && (av.stats[av.avaliadorId] || av.stats[String(av.avaliadorId)]);
+        let statsHtml = '';
+        if (st) {
+          statsHtml = `<div style="font-size:0.8rem;color:#888;margin-top:6px">Gols: ${st.gols || 0} · Assistências: ${st.assistencias || 0}${st.defesas != null ? ` · Defesas: ${st.defesas}` : ''}</div>`;
+        }
+        card.innerHTML = `
+          <div style="display:flex;justify-content:space-between;gap:8px;margin-bottom:6px">
+            <strong style="font-family:DM Sans,sans-serif">${avaliador}</strong>
+            <span style="color:${statusColor};font-size:0.75rem;font-family:DM Sans,sans-serif">${status}</span>
+          </div>
+          ${notasHtml || '<div class="card-detail">Sem notas</div>'}
+          ${statsHtml}
+        `;
+        if (isAvaliacaoPendente(av)) {
+          const actions = document.createElement('div');
+          actions.style.display = 'flex';
+          actions.style.gap = '8px';
+          actions.style.marginTop = '10px';
+          const btnOk = document.createElement('button');
+          btnOk.type = 'button';
+          btnOk.className = 'btn-add';
+          btnOk.style.flex = '1';
+          btnOk.style.margin = '0';
+          btnOk.textContent = 'Aprovar';
+          btnOk.onclick = () => decidirAvaliacoes([av.id], 'aprovar', partidaId);
+          const btnNo = document.createElement('button');
+          btnNo.type = 'button';
+          btnNo.className = 'btn-secondary';
+          btnNo.style.flex = '1';
+          btnNo.style.margin = '0';
+          btnNo.style.color = '#ff8a80';
+          btnNo.textContent = 'Rejeitar';
+          btnNo.onclick = () => decidirAvaliacoes([av.id], 'rejeitar', partidaId);
+          actions.appendChild(btnOk);
+          actions.appendChild(btnNo);
+          card.appendChild(actions);
+        }
+        return card;
+      };
+
+      pend.forEach(av => box.appendChild(renderAvCard(av)));
+      avs.filter(a => !isAvaliacaoPendente(a)).forEach(av => box.appendChild(renderAvCard(av)));
+
+      const footer = document.createElement('div');
+      footer.className = 'confirm-actions';
+      footer.style.marginTop = '12px';
+      if (pend.length > 1) {
+        const btnAll = document.createElement('button');
+        btnAll.type = 'button';
+        btnAll.className = 'confirm-ok';
+        btnAll.textContent = `Aprovar todas (${pend.length})`;
+        btnAll.onclick = () => decidirAvaliacoes(pend.map(a => a.id), 'aprovar', partidaId);
+        footer.appendChild(btnAll);
+      }
+      const btnClose = document.createElement('button');
+      btnClose.type = 'button';
+      btnClose.className = 'confirm-cancel';
+      btnClose.textContent = 'Fechar';
+      btnClose.onclick = () => ov.remove();
+      footer.appendChild(btnClose);
+      box.appendChild(footer);
+      ov.appendChild(box);
+      ov.addEventListener('click', (e) => { if (e.target === ov) ov.remove(); });
+      document.body.appendChild(ov);
+    }
+
+    async function decidirAvaliacoes(avaliacaoIds, acao, partidaId) {
+      if (!avaliacaoIds?.length) return;
+      try {
+        await approveAvaliacoes(avaliacaoIds, acao);
+        state = await load();
+        const ov = document.getElementById('avaliacao-revisao-overlay');
+        if (ov) ov.remove();
+        render();
+        alert(acao === 'aprovar'
+          ? (avaliacaoIds.length > 1 ? 'Avaliações aprovadas. Av e estatísticas atualizados.' : 'Avaliação aprovada. Av e estatísticas atualizados.')
+          : 'Avaliação rejeitada.');
+        const aindaPend = (state.avaliacoes || []).some(a => sameId(a.partidaId, partidaId) && isAvaliacaoPendente(a));
+        const aindaAlguma = (state.avaliacoes || []).some(a => sameId(a.partidaId, partidaId));
+        if (aindaAlguma) abrirRevisaoAvaliacoes(partidaId);
+        else if (!aindaPend) { /* modal já fechado */ }
+      } catch (e) {
+        alert('Falha ao ' + (acao === 'aprovar' ? 'aprovar' : 'rejeitar') + ': ' + (e.message || e));
+      }
+    }
+
     function somaNivelTime(partida, ids) {
       return ids.reduce((sum, id) => {
         const part = partida.participantes.find(x => x.playerId == id);
@@ -2039,15 +2141,15 @@ const DIAS_SEMANA_CURTO = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', '
         const warn = ui.draftData && !isDiaPelada(ui.draftData, diaPelada)
           ? `<div class="hint-warn">⚠ Esta data não é ${labelDiaSemana(diaPelada).toLowerCase()}</div>` : '';
         const adminAp = getAdminPerfil();
-        const adminHtml = `<label class="chk-row"><input type="checkbox" ${ui.draftSelecionados['admin:' + getAdmin().id] ? 'checked' : ''} onchange="toggleDraftPlayer('admin:${getAdmin().id}')"><span>${adminNomeLabel()}${golTag(adminAp.goleiro)}</span><span style="color:#00bcd4;font-size:0.7rem;margin-left:auto">admin · Nv ${formatNivel(adminAp.nivel)} · Av ${formatNivel(adminAp.nivelAvaliacao)}</span></label>`;
+        const adminHtml = `<label class="chk-row"><input type="checkbox" ${ui.draftSelecionados['admin:' + getAdmin().id] ? 'checked' : ''} onchange="toggleDraftPlayer('admin:${getAdmin().id}')"><span class="chk-row-nome">${adminNomeLabel()}${golTag(adminAp.goleiro)}</span><span class="chk-row-meta chk-row-meta--admin">admin · Nv ${formatNivel(adminAp.nivel)} · Av ${formatNivel(adminAp.nivelAvaliacao)}</span></label>`;
         const mensHtml = state.mensalistas.length
           ? state.mensalistas.map(m =>
-            `<label class="chk-row"><input type="checkbox" ${ui.draftSelecionados['m:' + m.id] ? 'checked' : ''} onchange="toggleDraftPlayer('m:${m.id}')"><span>${m.nome}${golTag(m.goleiro)}</span><span style="color:#555;font-size:0.7rem;margin-left:auto">mensalista · Nv ${formatNivel(m.nivel)} · Av ${formatNivel(m.nivelAvaliacao)}</span></label>`
+            `<label class="chk-row"><input type="checkbox" ${ui.draftSelecionados['m:' + m.id] ? 'checked' : ''} onchange="toggleDraftPlayer('m:${m.id}')"><span class="chk-row-nome">${m.nome}${golTag(m.goleiro)}</span><span class="chk-row-meta">mens. · Nv ${formatNivel(m.nivel)} · Av ${formatNivel(m.nivelAvaliacao)}</span></label>`
           ).join('')
           : '<p style="font-family:DM Sans,sans-serif;color:#555;font-size:0.85rem">Nenhum mensalista cadastrado</p>';
         const avHtml = state.avulsos.length
           ? state.avulsos.map(a =>
-            `<label class="chk-row"><input type="checkbox" ${ui.draftSelecionados['a:' + a.id] ? 'checked' : ''} onchange="toggleDraftPlayer('a:${a.id}')"><span>${a.nome}${golTag(a.goleiro)}</span><span style="color:#555;font-size:0.7rem;margin-left:auto">avulso · Nv ${formatNivel(a.nivel)} · Av ${formatNivel(a.nivelAvaliacao)}</span></label>`
+            `<label class="chk-row"><input type="checkbox" ${ui.draftSelecionados['a:' + a.id] ? 'checked' : ''} onchange="toggleDraftPlayer('a:${a.id}')"><span class="chk-row-nome">${a.nome}${golTag(a.goleiro)}</span><span class="chk-row-meta">avulso · Nv ${formatNivel(a.nivel)} · Av ${formatNivel(a.nivelAvaliacao)}</span></label>`
           ).join('')
           : '';
         const convHtml = ui.draftConvidados.map(c =>
@@ -2058,14 +2160,14 @@ const DIAS_SEMANA_CURTO = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', '
           <button class="btn-back" onclick="voltarListaPartidas()">← Voltar</button>
           <div class="card">
             <div class="section-title">NOVA PARTIDA</div>
-            <div style="display:flex;flex-direction:column;gap:10px;font-family:'DM Sans',sans-serif;font-size:0.9rem">
+            <div style="display:flex;flex-direction:column;gap:10px;font-family:'DM Sans',sans-serif;font-size:0.9rem;min-width:0;max-width:100%" class="cfg-form">
               <div>
                 <div class="card-label">Data (dd/mm/aaaa)</div>
                 <input type="text" class="fut-input" id="inp-partida-data" inputmode="numeric" placeholder="dd/mm/aaaa" value="${isoToBR(ui.draftData) || ''}" onchange="setDraftDataFromInput()" onblur="setDraftDataFromInput()">
                 ${warn}
                 <button type="button" class="btn-secondary" style="margin-top:8px;margin-bottom:0" onclick="usarProximaPelada()">Próxima ${labelDiaSemanaCurto(diaPelada)}</button>
               </div>
-              <div class="grid2" style="margin-bottom:0">
+              <div class="grid2">
                 <div>
                   <div class="card-label">Início (24h)</div>
                   <input type="text" class="fut-input" id="inp-partida-inicio" inputmode="numeric" placeholder="${getPeladaHoraInicio()}" value="${ui.draftHoraInicio}" maxlength="5">
@@ -2147,7 +2249,18 @@ const DIAS_SEMANA_CURTO = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', '
           </div>
           <button class="btn-add" style="background:#25d366;color:#000;width:100%;margin-bottom:8px" onclick="copiarPartidaWhats(${jsArg(p.id)})">💬 Copiar Partida p/ WhatsApp</button>
           <button class="btn-add" style="background:#5865F2;color:#fff;width:100%;margin-bottom:8px" onclick="copiarLinkAvaliacao(${jsArg(p.id)})">⭐ Link de avaliação</button>
-          <button class="btn-secondary" onclick="importarAvaliacoesPartida(${jsArg(p.id)})">Importar avaliações (JSON)</button>
+          ${(() => {
+            const pend = (state.avaliacoes || []).filter(a => sameId(a.partidaId, p.id) && isAvaliacaoPendente(a));
+            const aprov = (state.avaliacoes || []).filter(a => sameId(a.partidaId, p.id) && isAvaliacaoAprovada(a));
+            const rej = (state.avaliacoes || []).filter(a => sameId(a.partidaId, p.id) && a.rejeitadaEm);
+            let btns = '';
+            if (pend.length) {
+              btns += `<button class="btn-add" style="background:#ff9800;color:#000;width:100%;margin-bottom:8px" onclick="abrirRevisaoAvaliacoes(${jsArg(p.id)})">📋 Revisar avaliações (${pend.length} pendente${pend.length !== 1 ? 's' : ''})</button>`;
+            } else if (aprov.length || rej.length) {
+              btns += `<button class="btn-secondary" style="width:100%;margin-bottom:8px" onclick="abrirRevisaoAvaliacoes(${jsArg(p.id)})">📋 Avaliações (${aprov.length} aprovada${aprov.length !== 1 ? 's' : ''}${rej.length ? `, ${rej.length} rejeitada${rej.length !== 1 ? 's' : ''}` : ''})</button>`;
+            }
+            return btns;
+          })()}
           <button class="btn-secondary" style="color:#ff8a80" onclick="resetarAvaliacoesPartida(${jsArg(p.id)})">Resetar avaliações desta partida</button>
           <div class="card" style="margin-bottom:8px;padding:12px">
             <div class="section-title" style="margin-bottom:8px">BALANCEAR TIMES POR</div>
@@ -2170,6 +2283,7 @@ const DIAS_SEMANA_CURTO = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', '
           </div>
           <div class="card">
             <div class="section-title">ESTATÍSTICAS</div>
+            <div class="card-detail" style="margin-bottom:8px">G/A/D vêm das avaliações aprovadas (somente leitura)</div>
             ${htmlEstatisticasPartida(p)}
           </div>
           <button class="btn-add" style="background:#ff5252;color:#fff;width:100%" onclick="removePartida(${jsArg(p.id)})">Remover partida</button>
@@ -2756,61 +2870,73 @@ const DIAS_SEMANA_CURTO = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', '
 
 
 function onHashChange() {
-  if ((location.hash || '').startsWith('#a=')) bootAvaliacaoFromHash();
-  else if (document.body.classList.contains('modo-avaliar')) {
-    document.body.classList.remove('modo-avaliar');
-    const va = document.getElementById('view-avaliar'); if (va) va.innerHTML = '';
+  if ((location.hash || '').startsWith('#a=')) {
+    showAvaliarLoading();
+    bootAvaliacaoFromHash().catch((e) => console.warn(e));
+  } else if (document.documentElement.classList.contains('modo-avaliar') || document.body.classList.contains('modo-avaliar')) {
+    exitModoAvaliarChrome();
     avaliarUi.payload = null; avaliarUi.avaliadorId = null; avaliarUi.notas = {}; avaliarUi.stats = {};
     render();
   }
 }
 
+function emptyStateForSkipAuth() {
+  return {
+    meta: { futId: null, configId: null, adminPlayerId: null, futNome: '' },
+    mensalistas: [], avulsos: [], partidas: [],
+    adminPerfil: { nome: '', nivel: 3, nivelAvaliacao: null, goleiro: false },
+    jogadoresPorTime: 5, custoQuadra: 0, saldoAnterior: 0, avulsosPendentesAnt: 0,
+    valorMensalidade: 0, valorAvulso: 0, mesAno: obterMesAnoAtual(), chavePix: '',
+    debitos: [], outrosDebitos: 0, debitosHistorico: [], discordWebhookUrl: '',
+    avaliacoes: [], balanceamentoTimes: 'nivel',
+    peladaDiaSemana: 3, peladaHoraInicio: '21:00', peladaHoraFim: '23:00', peladaDataInicio: ''
+  };
+}
+
 export async function bootApp(opts = {}) {
+  if (!bootApp._hashWired) {
+    bootApp._hashWired = true;
+    window.addEventListener('hashchange', onHashChange);
+  }
+
+  // Link #a=: chrome já oculto; não hydrate/render da app principal enquanto busca a partida
+  if (opts.skipAuth) {
+    state = emptyStateForSkipAuth();
+    showAvaliarLoading();
+    await bootAvaliacaoFromHash();
+    return;
+  }
+
   try {
     state = await load();
   } catch (e) {
-    if (!opts.skipAuth) throw e;
-    console.warn(e);
-    state = {
-      meta: { futId: null, configId: null, adminPlayerId: null, futNome: '' },
-      mensalistas: [], avulsos: [], partidas: [],
-      adminPerfil: { nome: '', nivel: 3, nivelAvaliacao: null, goleiro: false },
-      jogadoresPorTime: 5, custoQuadra: 0, saldoAnterior: 0, avulsosPendentesAnt: 0,
-      valorMensalidade: 0, valorAvulso: 0, mesAno: obterMesAnoAtual(), chavePix: '',
-      debitos: [], outrosDebitos: 0, debitosHistorico: [], discordWebhookUrl: '',
-      avaliacoes: [], balanceamentoTimes: 'nivel',
-      peladaDiaSemana: 3, peladaHoraInicio: '21:00', peladaHoraFim: '23:00', peladaDataInicio: ''
-    };
+    throw e;
   }
   if (!state.mesAno) {
     state.mesAno = obterMesAnoAtual();
     try { await persist.saveConfig(state); } catch (e) { console.warn(e); }
   }
-  if (!bootApp._hashWired) {
-    bootApp._hashWired = true;
-    window.addEventListener('hashchange', onHashChange);
-  }
-  if (!bootAvaliacaoFromHash()) render();
+  if (!(await bootAvaliacaoFromHash())) render();
 }
 
 export function exposeGlobals() {
   Object.assign(window, {
     editMesAno, setTab, copiarResumoWhats, editSaldo, editAvulsosAnt, editCusto,
     addMensalista, copiarMensalistasWhats, addAvulso, setRankingFiltro, copiarRankingWhats,
-    setBalanceamentoTimes, testarDiscordWebhook, importarAvaliacoesDaUi, resetarAvaliacoes,
+    setBalanceamentoTimes, testarDiscordWebhook, resetarAvaliacoes,
     abrirHistoricoDebitos, addDebito, exportarBackup, importarBackup, iniciarNovoMes, trocarFut, criarNovoFut, apagarFutAtual, deslogar,
     onRankingPartidaChange, updateMesVigente, updateTaxas, updateJogadoresPorTime, updatePeladaConfig,
     updateAdminNome, updateDiscordWebhook, updatePix,
     adjStatAvaliar, setNotaAvaliar, setAvaliadorAvaliar, enviarAvaliacaoDiscord,
-    copiarJsonAvaliacaoFallback, cycleNivelAdmin, toggleGoleiroAdmin, cycleNivelMens,
+    cycleNivelAdmin, toggleGoleiroAdmin, cycleNivelMens,
     toggleGoleiroMens, toggleMens, removeMens, cycleNivelAv, toggleGoleiroAv, toggleAv,
     removeAv, removeDebito, moverJogadorParaTime, playerDragStart, playerDragEnd,
-    teamDragOver, teamDragLeave, teamDrop, removeJogadorDaPartida, adjStat,
+    teamDragOver, teamDragLeave, teamDrop, removeJogadorDaPartida,
     removeDraftConvidado, voltarListaPartidas, usarProximaPelada, usarProximaQuarta, addDraftConvidado,
-    criarPartida, copiarPartidaWhats, copiarLinkAvaliacao, importarAvaliacoesPartida,
+    criarPartida, copiarPartidaWhats, copiarLinkAvaliacao,
     resetarAvaliacoesPartida, montarTimes, addJogadorNaPartida, removePartida,
     abrirNovaPartida, abrirDetalhePartida, fecharHistoricoDebitos, toggleDraftPlayer,
-    setDraftDataFromInput
+    setDraftDataFromInput, abrirRevisaoAvaliacoes, decidirAvaliacoes
   });
 }
 

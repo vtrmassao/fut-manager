@@ -71,7 +71,7 @@ export async function persistState(state) {
     pago: false,
     status: null,
     nivel: state.adminPerfil.nivel,
-    nivel_avaliacao: state.adminPerfil.nivelAvaliacao,
+    nivel_avaliacao: state.adminPerfil.nivelAvaliacao ?? null,
     goleiro: state.adminPerfil.goleiro,
   }, ...state.mensalistas.map(j => ({
     id: j.id,
@@ -81,7 +81,7 @@ export async function persistState(state) {
     pago: !!j.pago,
     status: null,
     nivel: j.nivel,
-    nivel_avaliacao: j.nivelAvaliacao,
+    nivel_avaliacao: j.nivelAvaliacao ?? null,
     goleiro: !!j.goleiro,
   })), ...state.avulsos.map(j => ({
     id: j.id,
@@ -91,7 +91,7 @@ export async function persistState(state) {
     pago: false,
     status: j.status,
     nivel: j.nivel,
-    nivel_avaliacao: j.nivelAvaliacao,
+    nivel_avaliacao: j.nivelAvaliacao ?? null,
     goleiro: !!j.goleiro,
   }))];
   const keepIds = jogadores.map(j => j.id);
@@ -167,7 +167,14 @@ export async function persistState(state) {
     if (teamRows.length) fail((await supabase.from('partida_times').insert(teamRows)).error);
   }
 
-  for (const a of state.avaliacoes) {
+  // Avaliações de partidas já removidas quebram a FK avaliacoes_partida_id_fkey
+  const partidaIds = new Set((state.partidas || []).map((p) => String(p.id)));
+  const avaliacoesValidas = (state.avaliacoes || []).filter((a) => partidaIds.has(String(a.partidaId)));
+  if (avaliacoesValidas.length !== (state.avaliacoes || []).length) {
+    state.avaliacoes = avaliacoesValidas;
+  }
+
+  for (const a of avaliacoesValidas) {
     fail((await supabase.from('avaliacoes').insert({
       id: a.id,
       fut_id: futId,
@@ -175,6 +182,8 @@ export async function persistState(state) {
       data: a.data || null,
       avaliador_id: a.avaliadorId,
       importado_em: a.importadoEm || new Date().toISOString(),
+      aprovada_em: a.aprovadaEm || null,
+      rejeitada_em: a.rejeitadaEm || null,
     })).error);
     const notaRows = Object.entries(a.notas || {}).map(([avaliado_id, nota]) => ({
       avaliacao_id: a.id,

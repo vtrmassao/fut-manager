@@ -48,3 +48,26 @@ export async function submitAvaliacao(payload) {
   if (!res.ok) throw new Error(data.error || 'Falha ao enviar avaliação');
   return data;
 }
+
+export async function fetchPartidaAvaliacao(partidaId) {
+  const res = await fetch(functionsUrl('get-partida-avaliacao'), {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      apikey: SUPABASE_ANON_KEY,
+      Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+    },
+    body: JSON.stringify({ partidaId }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const err = new Error(data.error || 'Falha ao carregar partida');
+    err.status = res.status;
+    throw err;
+  }
+  return data;
+}
+
+export async function approveAvaliacoes(avaliacaoIds, acao) {
+  return adminFunctionPost('approve-avaliacao', { avaliacaoIds, acao });
+}

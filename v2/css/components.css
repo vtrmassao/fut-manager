@@ -220,8 +220,11 @@
 
 .fut-input {
       flex: 1 1 140px;
+      display: block;
+      width: 100%;
       min-width: 0;
       max-width: 100%;
+      box-sizing: border-box;
       background: #0e0e18;
       border: 1px solid #2a2a40;
       border-radius: 8px;
@@ -233,6 +236,77 @@
       -webkit-appearance: none;
       appearance: none;
     }
+
+.input-row > .fut-input {
+      width: auto;
+    }
+
+.grid2 .fut-input,
+.cfg-form .fut-input {
+      flex: none;
+      width: 100%;
+}
+
+.cfg-form {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.9rem;
+      min-width: 0;
+      max-width: 100%;
+}
+
+.cfg-hint {
+      font-size: 0.8rem;
+      color: #888;
+      line-height: 1.4;
+      margin: 0;
+}
+
+.cfg-hint-sm {
+      font-size: 0.75rem;
+      color: #666;
+      line-height: 1.4;
+      margin: 0;
+}
+
+.cfg-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      min-width: 0;
+      max-width: 100%;
+}
+
+.cfg-row-label {
+      color: #aaa;
+      flex: 0 1 auto;
+      min-width: 0;
+}
+
+.cfg-row-field {
+      flex: 1 1 120px;
+      min-width: 0;
+      max-width: 100%;
+}
+
+.cfg-row-field .fut-input {
+      width: 100%;
+      max-width: 100%;
+      margin: 0;
+      padding: 8px 10px;
+}
+
+.cfg-row-field--date {
+      flex: 0 1 140px;
+}
+
+.cfg-form .grid2 {
+      margin-bottom: 0;
+}
 
 .fut-input:focus {
       border-color: #00e676;
@@ -680,11 +754,13 @@
 .chk-row {
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 8px;
       padding: 10px 0;
       border-bottom: 1px solid #1a1a28;
       font-family: 'DM Sans', sans-serif;
       font-size: 0.88rem;
+      min-width: 0;
+      max-width: 100%;
     }
 
 .chk-row:last-child {
@@ -694,8 +770,34 @@
 .chk-row input {
       width: 18px;
       height: 18px;
+      flex-shrink: 0;
       accent-color: #00e676;
     }
+
+.chk-row-nome {
+      flex: 1 1 auto;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+.chk-row-meta {
+      flex: 0 1 auto;
+      min-width: 0;
+      max-width: 55%;
+      margin-left: auto;
+      font-size: 0.68rem;
+      color: #555;
+      text-align: right;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+}
+
+.chk-row-meta--admin {
+      color: #00bcd4;
+}
 
 .rank-pos {
       font-family: 'Bebas Neue', sans-serif;
